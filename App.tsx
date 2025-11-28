@@ -1,0 +1,441 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import {
+  Wand2,
+  Loader2,
+  Code2,
+  Music,
+  AlertCircle,
+  FileDown,
+  Sparkles,
+  Trash2,
+  Wrench,
+  Settings,
+  FolderOpen,
+  Save,
+} from 'lucide-react';
+import * as Tone from 'tone';
+
+import ModelSelector from './components/ModelSelector';
+import {
+  generateMusicCode,
+  refineMusicCode,
+  getApiKey,
+  DEFAULT_MODEL,
+} from './services/geminiService';
+import {
+  executeCode,
+  stopTransport,
+  startTransport,
+  initializeAudio,
+  setMasterVolume,
+  startRecording,
+  stopRecording,
+} from './utils/audioEngine';
+import Visualizer from './components/Visualizer';
+import Controls from './components/Controls';
+import { PlayState, GenerationState } from './types';
+import ApiKeyDialog from './components/ApiKeyDialog';
+import LibraryDialog from './components/LibraryDialog';
+import { Button } from '@/components/ui/button';
+
+// Default starter code
+const DEFAULT_CODE = `// Welcome to TonAI
+// Describe a sound and hit "Generate" 
+// Or write your own Tone.js code here!
+
+const synth = new Tone.PolySynth(Tone.Synth).toDestination();
+
+// Create a simple loop
+const loop = new Tone.Loop(time => {
+  synth.triggerAttackRelease(["C4", "E4", "G4"], "8n", time);
+}, "2n").start(0);
+
+// Set BPM
+Tone.Transport.bpm.value = 100;
+`;
+
+const TonAIApp: React.FC = () => {
+  const [prompt, setPrompt] = useState('');
+  const [code, setCode] = useState(DEFAULT_CODE);
+  const [generationState, setGenerationState] = useState<GenerationState>({
+    status: 'idle',
+  });
+  const [playState, setPlayState] = useState<PlayState>(PlayState.STOPPED);
+  const [error, setError] = useState<string | null>(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const [apiKeyOpen, setApiKeyOpen] = useState(false);
+  const [libraryOpen, setLibraryOpen] = useState(false);
+  const [libraryMode, setLibraryMode] = useState<'save' | 'load'>('load');
+  const [selectedModel, setSelectedModel] = useState(DEFAULT_MODEL);
+
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    // Check for API Key on load
+    if (!getApiKey()) {
+      const timer = setTimeout(() => setApiKeyOpen(true), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, []);
+
+  const handleGenerate = async (mode: 'new' | 'refine', overridePrompt?: string) => {
+    const promptToUse = overridePrompt || prompt;
+    if (!promptToUse.trim()) return;
+
+    if (!getApiKey()) {
+      setApiKeyOpen(true);
+      return;
+    }
+
+    // Capture the current error before clearing it so we can send it to the AI
+    const currentError = error;
+
+    setGenerationState({ status: 'loading' });
+    setError(null);
+
+    try {
+      let generatedCode = '';
+      if (mode === 'refine') {
+        // Pass the previous error to help the AI fix it
+        generatedCode = await refineMusicCode(code, promptToUse, currentError, selectedModel);
+      } else {
+        generatedCode = await generateMusicCode(promptToUse, selectedModel);
+      }
+
+      setCode(generatedCode);
+      setGenerationState({ status: 'success' });
+    } catch (e: any) {
+      setGenerationState({ status: 'error', error: e.message });
+      if (e.message.includes('API Key')) {
+        setApiKeyOpen(true);
+      }
+    }
+  };
+
+  const handlePlay = async () => {
+    setError(null);
+    try {
+      await initializeAudio();
+
+      // Reset recording state on new play if it was stuck
+      setIsRecording(false);
+
+      if (playState === PlayState.PAUSED) {
+        startTransport();
+      } else {
+        await executeCode(code);
+      }
+      setPlayState(PlayState.PLAYING);
+    } catch (e: any) {
+      console.error(e);
+      setError(e.message || 'Runtime Error in Code');
+      setPlayState(PlayState.STOPPED);
+      stopTransport();
+    }
+  };
+
+  const handlePause = () => {
+    Tone.Transport.pause();
+    setPlayState(PlayState.PAUSED);
+  };
+
+  const handleStop = () => {
+    stopTransport();
+    setPlayState(PlayState.STOPPED);
+    setIsRecording(false); // Stop recording if stopping playback
+  };
+
+  const handleVolumeChange = (val: number) => {
+    setMasterVolume(val);
+  };
+
+  const handleToggleRecord = async () => {
+    if (!isRecording) {
+      // Start
+      await initializeAudio(); // Ensure context
+      startRecording();
+      setIsRecording(true);
+    } else {
+      // Stop & Save
+      const blob = await stopRecording();
+      setIsRecording(false);
+
+      if (blob) {
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.download = 'tonai-recording.webm';
+        anchor.href = url;
+        anchor.click();
+        URL.revokeObjectURL(url);
+      }
+    }
+  };
+
+  const downloadCode = () => {
+    const fileContent = `/**
+ * Generated by TonAI
+ * Prompt: "${prompt}"
+ */
+
+${code}`;
+    const blob = new Blob([fileContent], { type: 'text/javascript' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = 'tonai.js';
+    anchor.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleAutoFix = () => {
+    const fixMsg = 'Fix the code to resolve the runtime error.';
+    setPrompt(fixMsg);
+    handleGenerate('refine', fixMsg);
+  };
+
+  const openLibrary = (mode: 'save' | 'load') => {
+    setLibraryMode(mode);
+    setLibraryOpen(true);
+  };
+
+  return (
+    <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col md:flex-row font-sans selection:bg-purple-500/30">
+      {/* Left Sidebar: Prompt & Info */}
+      <div className="w-full md:w-1/3 lg:w-1/4 bg-zinc-900 border-r border-zinc-800 p-6 flex flex-col gap-6 relative z-10">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-purple-600 rounded-lg flex items-center justify-center shadow-lg shadow-purple-900/20">
+              <Music className="text-white" size={20} />
+            </div>
+            <h1 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-purple-400 to-pink-600 bg-clip-text text-transparent">
+              TonAI
+            </h1>
+          </div>
+          <div className="flex gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-zinc-400 hover:text-white"
+              onClick={() => setApiKeyOpen(true)}
+              title="Settings"
+            >
+              <Settings size={16} />
+            </Button>
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          <ModelSelector value={selectedModel} onValueChange={setSelectedModel} />
+
+          <div className="flex items-center justify-between">
+            <label className="block text-xs uppercase tracking-wider text-zinc-500 font-semibold">
+              AI Assistant
+            </label>
+            <div className="flex gap-2">
+              <button
+                onClick={() => openLibrary('load')}
+                className="text-xs text-zinc-400 hover:text-purple-400 flex items-center gap-1 transition-colors"
+                title="Open Library"
+              >
+                <FolderOpen size={12} /> Load
+              </button>
+              <button
+                onClick={() => {
+                  setPrompt('');
+                  setCode(DEFAULT_CODE);
+                  handleStop();
+                  setError(null);
+                }}
+                className="text-xs text-zinc-600 hover:text-red-400 flex items-center gap-1 transition-colors"
+                title="Delete all and restart"
+              >
+                <Trash2 size={12} /> Reset
+              </button>
+            </div>
+          </div>
+
+          <textarea
+            className="w-full bg-zinc-950 border border-zinc-700 rounded-lg p-3 text-sm focus:ring-2 focus:ring-purple-600 focus:border-transparent outline-none transition-all resize-none h-32 leading-relaxed placeholder:text-zinc-600"
+            placeholder={
+              error
+                ? 'An error occurred. Use Auto-Fix or describe the fix...'
+                : "Describe a sound... e.g., 'Make the drums faster' or 'Add a spooky reverb'"
+            }
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+          />
+
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              onClick={() => handleGenerate('new')}
+              disabled={generationState.status === 'loading' || !prompt.trim()}
+              className="py-3 bg-zinc-800 text-zinc-300 border border-zinc-700 hover:border-zinc-500 rounded-lg font-semibold hover:bg-zinc-750 hover:text-white transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+            >
+              {generationState.status === 'loading' ? (
+                <Loader2 className="animate-spin" size={16} />
+              ) : (
+                <Wand2 size={16} />
+              )}
+              New
+            </button>
+            <button
+              onClick={() => handleGenerate('refine')}
+              disabled={generationState.status === 'loading' || !prompt.trim()}
+              className="py-3 bg-purple-600 text-white rounded-lg font-semibold hover:bg-purple-500 hover:shadow-lg hover:shadow-purple-500/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+            >
+              {generationState.status === 'loading' ? (
+                <Loader2 className="animate-spin" size={16} />
+              ) : (
+                <Sparkles size={16} />
+              )}
+              Refine
+            </button>
+          </div>
+
+          {error && (
+            <button
+              onClick={handleAutoFix}
+              className="w-full py-3 bg-red-500/10 border border-red-500/50 text-red-400 hover:bg-red-500/20 rounded-lg font-bold flex items-center justify-center gap-2 transition-all animate-pulse shadow-lg shadow-red-900/10"
+            >
+              <Wrench size={16} />
+              Auto-Fix Script
+            </button>
+          )}
+
+          {generationState.status === 'error' && (
+            <div className="p-3 bg-red-900/20 border border-red-900/50 rounded-lg text-red-400 text-sm flex items-start gap-2 animate-in fade-in slide-in-from-top-2">
+              <AlertCircle size={16} className="mt-0.5 shrink-0" />
+              <span>{generationState.error}</span>
+            </div>
+          )}
+        </div>
+
+        <div className="mt-auto">
+          <div className="text-xs text-zinc-600 leading-relaxed bg-zinc-950/50 p-4 rounded-lg border border-zinc-800/50">
+            <p className="font-semibold text-zinc-500 mb-2 uppercase tracking-wider">
+              Instructions
+            </p>
+            <ul className="space-y-2">
+              <li className="flex gap-2">
+                <span className="text-purple-500 font-bold">•</span>
+                <span>
+                  Use <span className="text-zinc-300 font-semibold">New</span> to start from
+                  scratch.
+                </span>
+              </li>
+              <li className="flex gap-2">
+                <span className="text-purple-500 font-bold">•</span>
+                <span>
+                  Use <span className="text-zinc-300 font-semibold">Refine</span> to edit the
+                  current code.
+                </span>
+              </li>
+              <li className="flex gap-2">
+                <span className="text-purple-500 font-bold">•</span>
+                <span>
+                  Hit <span className="text-red-400 font-semibold">REC</span> to capture and
+                  download audio.
+                </span>
+              </li>
+              {error && (
+                <li className="flex gap-2 text-red-400 font-medium animate-pulse">
+                  <span className="text-red-500 font-bold">•</span>
+                  <span>Click Auto-Fix to repair errors.</span>
+                </li>
+              )}
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      {/* Right Main Area: Editor & Viz */}
+      <div className="flex-1 flex flex-col relative h-screen overflow-hidden">
+        {/* Visualizer Section */}
+        <div className="p-6 pb-2 border-b border-zinc-800 bg-zinc-950/50 relative">
+          <Visualizer isPlaying={playState === PlayState.PLAYING} />
+        </div>
+
+        {/* Code Editor Section */}
+        <div className="flex-1 relative bg-zinc-950 flex flex-col">
+          <div className="flex items-center justify-between px-6 py-2 bg-zinc-900/50 border-b border-zinc-800">
+            <div className="flex items-center gap-2 text-zinc-400">
+              <Code2 size={16} />
+              <span className="text-xs font-mono">SCRIPT EDITOR (JS)</span>
+            </div>
+
+            <div className="flex items-center gap-3">
+              {error && (
+                <span className="text-xs text-red-400 font-mono bg-red-950/50 px-2 py-1 rounded flex items-center gap-1">
+                  <AlertCircle size={12} /> {error}
+                </span>
+              )}
+              <button
+                onClick={() => openLibrary('save')}
+                className="text-zinc-500 hover:text-purple-400 transition-colors"
+                title="Save to Library"
+              >
+                <Save size={18} />
+              </button>
+              <button
+                onClick={downloadCode}
+                className="text-zinc-500 hover:text-purple-400 transition-colors"
+                title="Download Code & Prompt"
+              >
+                <FileDown size={18} />
+              </button>
+            </div>
+          </div>
+
+          <div className="relative flex-1 overflow-hidden">
+            <textarea
+              ref={textareaRef}
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+              spellCheck={false}
+              className="absolute inset-0 w-full h-full bg-[#0d0d10] text-purple-100 font-mono text-sm p-6 resize-none outline-none leading-relaxed"
+              style={{
+                tabSize: 2,
+              }}
+            />
+          </div>
+        </div>
+      </div>
+
+      <Controls
+        playState={playState}
+        onPlay={handlePlay}
+        onPause={handlePause}
+        onStop={handleStop}
+        onVolumeChange={handleVolumeChange}
+        onToggleRecord={handleToggleRecord}
+        isRecording={isRecording}
+        disabled={false}
+      />
+
+      <ApiKeyDialog open={apiKeyOpen} onOpenChange={setApiKeyOpen} />
+      <LibraryDialog
+        open={libraryOpen}
+        onOpenChange={setLibraryOpen}
+        currentCode={code}
+        onLoadCode={(c) => {
+          setCode(c);
+          handleStop();
+        }}
+        mode={libraryMode}
+      />
+    </div>
+  );
+};
+
+const App: React.FC = () => {
+  return (
+    <Router>
+      <Routes>
+        <Route path="/" element={<TonAIApp />} />
+      </Routes>
+    </Router>
+  );
+};
+
+export default App;

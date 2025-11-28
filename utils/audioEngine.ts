@@ -1,0 +1,123 @@
+import * as Tone from 'tone';
+
+// Global reference to track active nodes for cleanup
+let recorder: Tone.Recorder | null = null;
+
+export const initializeAudio = async () => {
+  if (Tone.context.state !== 'running') {
+    await Tone.start();
+  }
+
+  if (!recorder) {
+    recorder = new Tone.Recorder();
+    Tone.Destination.connect(recorder);
+  }
+
+  console.log('Audio Context Started');
+};
+
+export const resetAudio = () => {
+  try {
+    Tone.Transport.stop();
+    // Fix: Explicitly pass 0 to prevent "Invalid argument to cancelScheduledValues" error
+    // Some AudioContext implementations fail if this argument is undefined/null
+    Tone.Transport.cancel(0);
+
+    // Also clear any automation on the master volume
+    if (Tone.Destination.volume.cancelScheduledValues) {
+      Tone.Destination.volume.cancelScheduledValues(0);
+    }
+  } catch (e) {
+    console.warn('Transport cancel warning:', e);
+  }
+
+  Tone.Transport.bpm.value = 120;
+  Tone.Transport.position = 0;
+};
+
+// We wrap the evaluation to inject Tone safely
+export const executeCode = async (code: string) => {
+  try {
+    // 1. Reset previous state
+    resetAudio();
+
+    // 2. Prepare the function
+    const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
+
+    // We create a scope where Tone is available
+    const playFunction = new AsyncFunction('Tone', code);
+
+    // 3. Execute
+    await playFunction(Tone);
+
+    // 4. Start Transport
+    Tone.Transport.start();
+
+    return true;
+  } catch (error) {
+    console.error('Execution Error:', error);
+    throw error;
+  }
+};
+
+export const stopTransport = () => {
+  Tone.Transport.stop();
+  Tone.Transport.position = 0;
+};
+
+export const startTransport = () => {
+  Tone.Transport.start();
+};
+
+export const restartTransport = () => {
+  Tone.Transport.position = 0;
+};
+
+export const setMasterVolume = (db: number) => {
+  if (!Number.isFinite(db)) return;
+  try {
+    // rampTo also uses cancelScheduledValues internally
+    Tone.Destination.volume.rampTo(db, 0.1);
+  } catch (e) {
+    console.warn('Volume ramp error, setting value directly:', e);
+    Tone.Destination.volume.value = db;
+  }
+};
+
+export const startRecording = async () => {
+  if (!recorder) return;
+  if (recorder.state === 'started') return;
+  recorder.start();
+};
+
+export const stopRecording = async (): Promise<Blob | null> => {
+  if (!recorder) return null;
+  // Prevent error if stopping when not started
+  if (recorder.state !== 'started') return null;
+
+  const recording = await recorder.stop();
+  return recording;
+};
+
+export const getTransportPosition = (): string => {
+  if (Tone.Transport.state === 'started') {
+    // Format: Bars:Beats:Sixteenths
+    const position = Tone.Transport.position;
+
+    // Handle both string "0:0:0" and number (seconds) cases
+    if (typeof position === 'string') {
+      return position.split('.')[0];
+    } else if (typeof position === 'number') {
+      // Fallback if it returns raw seconds
+      return 'Playing...';
+    }
+  }
+  return '0:0:0';
+};
+
+export const getAnalyser = () => {
+  // Create a master analyser
+  const analyser = new Tone.Analyser('waveform', 256);
+  Tone.Destination.connect(analyser);
+  return analyser;
+};
