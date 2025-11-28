@@ -51,5 +51,42 @@ export const deleteTrack = async (id: string) => {
 export const getCollections = async () => {
   const tracks = await getTracks();
   const collections = new Set(tracks.map((t) => t.collection).filter(Boolean));
-  return Array.from(collections);
+  return Array.from(collections).sort();
+};
+
+export const deleteCollection = async (collectionName: string) => {
+  const db = await dbPromise;
+  const tx = db.transaction(STORE_NAME, 'readwrite');
+  const index = tx.store.index('by-collection');
+  
+  // Get all keys for tracks in this collection
+  const keys = await index.getAllKeys(collectionName);
+  
+  // Delete each track
+  await Promise.all(keys.map(key => db.delete(STORE_NAME, key)));
+  await tx.done;
+};
+
+export const renameCollection = async (oldName: string, newName: string) => {
+  const db = await dbPromise;
+  const tx = db.transaction(STORE_NAME, 'readwrite');
+  const index = tx.store.index('by-collection');
+  
+  const tracks = await index.getAll(oldName);
+  
+  await Promise.all(tracks.map(track => {
+    track.collection = newName;
+    return db.put(STORE_NAME, track);
+  }));
+  
+  await tx.done;
+};
+
+export const updateTrackCollection = async (trackId: string, newCollection: string) => {
+  const db = await dbPromise;
+  const track = await db.get(STORE_NAME, trackId);
+  if (track) {
+    track.collection = newCollection;
+    await db.put(STORE_NAME, track);
+  }
 };

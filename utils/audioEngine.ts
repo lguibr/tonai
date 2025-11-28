@@ -19,9 +19,16 @@ export const initializeAudio = async () => {
 export const resetAudio = () => {
   try {
     Tone.Transport.stop();
+    Tone.Transport.position = 0;
+    
     // Fix: Explicitly pass 0 to prevent "Invalid argument to cancelScheduledValues" error
-    // Some AudioContext implementations fail if this argument is undefined/null
     Tone.Transport.cancel(0);
+
+    // Cancel automation on the BPM to prevent lingering ramps
+    if (Tone.Transport.bpm.cancelScheduledValues) {
+      Tone.Transport.bpm.cancelScheduledValues(0);
+    }
+    Tone.Transport.bpm.value = 120;
 
     // Also clear any automation on the master volume
     if (Tone.Destination.volume.cancelScheduledValues) {
@@ -30,9 +37,6 @@ export const resetAudio = () => {
   } catch (e) {
     console.warn('Transport cancel warning:', e);
   }
-
-  Tone.Transport.bpm.value = 120;
-  Tone.Transport.position = 0;
 };
 
 // We wrap the evaluation to inject Tone safely
@@ -44,8 +48,12 @@ export const executeCode = async (code: string) => {
     // 2. Prepare the function
     const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
 
+    // Strip import statements to prevent "Cannot use import statement outside a module" error
+    // The import is useful for the editor (types), but invalid for new Function()
+    const runnableCode = code.replace(/^\s*import\s+.*$/gm, '');
+
     // We create a scope where Tone is available
-    const playFunction = new AsyncFunction('Tone', code);
+    const playFunction = new AsyncFunction('Tone', runnableCode);
 
     // 3. Execute
     await playFunction(Tone);

@@ -1,4 +1,5 @@
-import { GoogleGenAI } from '@google/genai';
+import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
+import { HumanMessage, SystemMessage } from '@langchain/core/messages';
 
 const STORAGE_KEY = 'tonai_gemini_api_key';
 
@@ -12,51 +13,43 @@ export const setApiKey = (key: string) => {
 
 export const AVAILABLE_MODELS = [
   {
-    id: 'gemini-3.0-pro-preview',
+    id: 'gemini-3-pro-preview',
     name: 'Gemini 3 Pro',
-    description: 'Best for multimodal understanding and complex reasoning.',
-    badge: 'Advanced',
+    description: 'Most powerful model for complex tasks.',
+    badge: 'Best',
   },
   {
-    id: 'gemini-2.5-pro-preview',
+    id: 'gemini-2.5-pro',
     name: 'Gemini 2.5 Pro',
-    description: 'State-of-the-art reasoning for code and complex problems.',
-    badge: 'Smart',
+    description: 'Reasoning model for complex tasks.',
+    badge: 'Recommended',
   },
   {
-    id: 'gemini-2.5-flash-preview',
+    id: 'gemini-2.5-flash',
     name: 'Gemini 2.5 Flash',
-    description: 'Best cost-performance, low latency.',
+    description: 'Fastest and most capable model for most tasks.',
     badge: 'Fast',
   },
   {
-    id: 'gemini-2.5-flash-lite-preview',
+    id: 'gemini-2.5-flash-lite',
     name: 'Gemini 2.5 Flash-Lite',
-    description: 'Optimized for cost efficiency.',
-    badge: 'Lite',
-  },
-  {
-    id: 'gemini-2.0-flash',
-    name: 'Gemini 2.0 Flash',
-    description: 'Second gen workhorse with 1M context.',
-    badge: 'Stable',
-  },
-  {
-    id: 'gemini-2.0-flash-lite',
-    name: 'Gemini 2.0 Flash-Lite',
-    description: 'Fast second gen model.',
+    description: 'Optimized for cost efficiency and speed.',
     badge: 'Lite',
   },
 ];
 
-export const DEFAULT_MODEL = 'gemini-3.0-pro-preview';
+export const DEFAULT_MODEL = 'gemini-3-pro-preview';
 
-const getAI = () => {
+const getAI = (modelName: string = DEFAULT_MODEL, temperature: number = 0.7) => {
   const apiKey = getApiKey();
   if (!apiKey) {
     throw new Error('API Key not found. Please set your Gemini API Key in settings.');
   }
-  return new GoogleGenAI({ apiKey });
+  return new ChatGoogleGenerativeAI({
+    model: modelName,
+    apiKey: apiKey,
+    temperature: temperature,
+  });
 };
 
 const SYSTEM_INSTRUCTION = `
@@ -89,10 +82,18 @@ CRITICAL PARAMETER SAFETY:
 `;
 
 const cleanCode = (text: string) => {
-  return text
+  let code = text
     .replace(/```javascript/g, '')
+    .replace(/```typescript/g, '')
     .replace(/```/g, '')
     .trim();
+
+  // Programmatically ensure Tone import exists for TypeScript autocomplete
+  if (!code.startsWith("import * as Tone from 'tone';")) {
+    code = `import * as Tone from 'tone';\n\n${code}`;
+  }
+
+  return code;
 };
 
 export const generateMusicCode = async (
@@ -100,20 +101,17 @@ export const generateMusicCode = async (
   model: string = DEFAULT_MODEL
 ): Promise<string> => {
   try {
-    const ai = getAI();
-    const response = await ai.models.generateContent({
-      model: model,
-      contents: `Create a Tone.js composition for: ${prompt}`,
-      config: {
-        systemInstruction: SYSTEM_INSTRUCTION,
-        temperature: 0.7,
-      },
-    });
+    const ai = getAI(model, 0.7);
+    const messages = [
+      new SystemMessage(SYSTEM_INSTRUCTION),
+      new HumanMessage(`Create a Tone.js composition for: ${prompt}`),
+    ];
 
-    return cleanCode(response.text || '');
+    const response = await ai.invoke(messages);
+    return cleanCode(response.content as string);
   } catch (error: any) {
     console.error('Gemini API Error:', error);
-    if (error.message.includes('API Key')) {
+    if (error.message?.includes('API Key') || error.toString().includes('API Key')) {
       throw error;
     }
     throw new Error('Failed to generate music code. Please check your API Key or try again.');
@@ -127,8 +125,9 @@ export const refineMusicCode = async (
   model: string = DEFAULT_MODEL
 ): Promise<string> => {
   try {
-    const ai = getAI();
-    let prompt = `
+    const ai = getAI(model, 0.5); // Lower temperature for edits to be more precise
+
+    let userPrompt = `
     EXISTING CODE:
     ${currentCode}
 
@@ -137,7 +136,7 @@ export const refineMusicCode = async (
     `;
 
     if (errorContext) {
-      prompt += `
+      userPrompt += `
       
     PREVIOUS RUNTIME ERROR:
     ${errorContext}
@@ -148,26 +147,20 @@ export const refineMusicCode = async (
     2. Then, apply the USER INSTRUCTION.
     `;
     } else {
-      prompt += `
+      userPrompt += `
     Task: Modify the EXISTING CODE to satisfy the USER INSTRUCTION. 
     Maintain the structure of the existing code unless the user asks to change it completely. 
     Ensure the code remains valid Tone.js code and ADHERES TO CRITICAL PARAMETER SAFETY (e.g. octaves < 6, Q < 5).
     `;
     }
 
-    const response = await ai.models.generateContent({
-      model: model,
-      contents: prompt,
-      config: {
-        systemInstruction: SYSTEM_INSTRUCTION,
-        temperature: 0.5, // Lower temperature for edits to be more precise
-      },
-    });
+    const messages = [new SystemMessage(SYSTEM_INSTRUCTION), new HumanMessage(userPrompt)];
 
-    return cleanCode(response.text || '');
+    const response = await ai.invoke(messages);
+    return cleanCode(response.content as string);
   } catch (error: any) {
     console.error('Gemini API Refine Error:', error);
-    if (error.message.includes('API Key')) {
+    if (error.message?.includes('API Key') || error.toString().includes('API Key')) {
       throw error;
     }
     throw new Error('Failed to refine music code. Please check your API Key or try again.');

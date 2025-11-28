@@ -12,13 +12,21 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { getApiKey, setApiKey } from '../services/geminiService';
 import { Key } from 'lucide-react';
+import ModelSelector from './ModelSelector';
 
 interface ApiKeyDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  selectedModel: string;
+  onModelChange: (model: string) => void;
 }
 
-const ApiKeyDialog: React.FC<ApiKeyDialogProps> = ({ open, onOpenChange }) => {
+const ApiKeyDialog: React.FC<ApiKeyDialogProps> = ({
+  open,
+  onOpenChange,
+  selectedModel,
+  onModelChange,
+}) => {
   const [key, setKey] = useState('');
 
   useEffect(() => {
@@ -59,6 +67,12 @@ const ApiKeyDialog: React.FC<ApiKeyDialogProps> = ({ open, onOpenChange }) => {
               className="col-span-3"
               type="password"
             />
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label className="text-right">Model</Label>
+            <div className="col-span-3">
+              <ModelSelector value={selectedModel} onValueChange={onModelChange} />
+            </div>
           </div>
         </div>
         <DialogFooter>

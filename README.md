@@ -1,10 +1,14 @@
 # TonAI
 
+<img
+  src="https://raw.githubusercontent.com/lguibr/tonai/main/logo.png"
+  alt="logo"
+  width="400"
+/>
+
 **The Generative Audio Workstation.**
 
 TonAI is a cutting-edge web application that empowers you to create, refine, and visualize music and soundscapes using the power of Generative AI and Tone.js. Describe a sound, and TonAI writes the code to play it in real-time.
-
-![TonAI Screenshot](/screenshot.png)
 
 ## ✨ Features
 
@@ -24,7 +28,7 @@ TonAI is built with a modern, performance-focused stack:
 - **Frontend**: React 18 + Vite for a lightning-fast development and user experience.
 - **Styling**: Tailwind CSS + shadcn/ui for a sleek, dark-mode-first aesthetic.
 - **Audio Engine**: [Tone.js](https://tonejs.github.io/) for Web Audio API abstraction and scheduling.
-- **Intelligence**: Google Gemini API (via `@google/genai`) for code generation and reasoning.
+- **Intelligence**: Google Gemini API (via `langchain`) for code generation and reasoning.
 - **Storage**: IndexedDB (via `idb`) for persisting your music library locally.
 
 ## 🚀 Getting Started
