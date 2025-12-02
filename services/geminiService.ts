@@ -1,5 +1,5 @@
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
-import { HumanMessage, SystemMessage } from '@langchain/core/messages';
+import { HumanMessage, SystemMessage, AIMessage } from '@langchain/core/messages';
 
 const STORAGE_KEY = 'tonai_gemini_api_key';
 
@@ -166,3 +166,135 @@ export const refineMusicCode = async (
     throw new Error('Failed to refine music code. Please check your API Key or try again.');
   }
 };
+
+export const chatWithAI = async (
+  messages: { role: 'user' | 'assistant'; content: string }[],
+  currentCode: string,
+  model: string = DEFAULT_MODEL
+): Promise<{ text: string; code?: string }> => {
+  try {
+    const ai = getAI(model, 0.7);
+
+    const systemPrompt = `
+${SYSTEM_INSTRUCTION}
+
+ADDITIONAL INSTRUCTIONS FOR CHAT:
+1. You are chatting with a user who wants to create music.
+2. ALWAYS start your response with a <thinking> block where you analyze the request and plan your code.
+3. Close the </thinking> block before generating the actual response/code.
+4. If the user asks for a change or new music, GENERATE THE FULL CODE.
+5. If you generate code, put it inside a markdown code block: \`\`\`javascript ... \`\`\`.
+6. If the user just wants to chat or ask questions, just answer in text.
+7. ALWAYS provide a brief explanation of what you did or answer the question.
+8. When generating code, ensure it is COMPLETE and runnable. Do not return partial snippets unless explicitly asked.
+    `;
+
+    const chatHistory = messages.map((m) => {
+      if (m.role === 'user') {
+        return new HumanMessage(m.content);
+      }
+      return new AIMessage(m.content);
+    });
+
+    // Add current code context to the last message if it's a user message
+    const lastMsg = chatHistory[chatHistory.length - 1];
+    if (lastMsg instanceof HumanMessage) {
+      lastMsg.content = `
+      CURRENT CODE CONTEXT:
+      ${currentCode}
+
+      USER MESSAGE:
+      ${lastMsg.content}
+      `;
+    }
+
+    const finalMessages = [new SystemMessage(systemPrompt), ...chatHistory];
+
+    const response = await ai.invoke(finalMessages);
+    const content = response.content as string;
+
+    // Extract code if present
+    const codeMatch = content.match(/```(?:javascript|typescript)?\s*([\s\S]*?)\s*```/);
+    let code: string | undefined;
+    let text = content;
+
+    if (codeMatch) {
+      code = cleanCode(codeMatch[1]);
+      // Optional: Remove code from text to keep chat clean, or keep it.
+      // Let's keep it in the text so the user sees what was generated in the chat bubble too,
+      // or we can strip it if we want the chat to be text-only and the editor to show the code.
+      // For "Open Canvas" feel, usually the chat shows a summary and the canvas shows the code.
+      // Let's strip the large code block from the text to avoid cluttering the chat.
+      text = content.replace(
+        /```(?:javascript|typescript)?\s*([\s\S]*?)\s*```/,
+        '[Code updated in Editor]'
+      );
+    }
+
+    return { text, code };
+  } catch (error: any) {
+    console.error('Gemini Chat Error:', error);
+    if (error.message?.includes('API Key') || error.toString().includes('API Key')) {
+      throw error;
+    }
+    throw new Error('Failed to chat. Please check your API Key or try again.');
+  }
+};
+
+export async function* streamChatWithAI(
+  messages: { role: 'user' | 'assistant'; content: string }[],
+  currentCode: string,
+  model: string = DEFAULT_MODEL
+): AsyncGenerator<string, void, unknown> {
+  try {
+    const ai = getAI(model, 0.7);
+
+    const systemPrompt = `
+${SYSTEM_INSTRUCTION}
+
+ADDITIONAL INSTRUCTIONS FOR CHAT:
+1. You are chatting with a user who wants to create music.
+2. ALWAYS start your response with a <thinking> block where you analyze the request and plan your code.
+3. Close the </thinking> block before generating the actual response/code.
+4. If the user asks for a change or new music, GENERATE THE FULL CODE.
+5. If you generate code, put it inside a markdown code block: \`\`\`javascript ... \`\`\`.
+6. If the user just wants to chat or ask questions, just answer in text.
+7. ALWAYS provide a brief explanation of what you did or answer the question.
+8. When generating code, ensure it is COMPLETE and runnable. Do not return partial snippets unless explicitly asked.
+    `;
+
+    const chatHistory = messages.map((m) => {
+      if (m.role === 'user') {
+        return new HumanMessage(m.content);
+      }
+      return new AIMessage(m.content);
+    });
+
+    const lastMsg = chatHistory[chatHistory.length - 1];
+    if (lastMsg instanceof HumanMessage) {
+      lastMsg.content = `
+      CURRENT CODE CONTEXT:
+      ${currentCode}
+
+      USER MESSAGE:
+      ${lastMsg.content}
+      `;
+    }
+
+    const finalMessages = [new SystemMessage(systemPrompt), ...chatHistory];
+
+    const stream = await ai.stream(finalMessages);
+
+    for await (const chunk of stream) {
+      if (chunk.content) {
+        yield chunk.content as string;
+      }
+    }
+  } catch (error: any) {
+    console.error('Gemini Stream Error:', error);
+    if (error.message?.includes('API Key') || error.toString().includes('API Key')) {
+      throw error;
+    }
+    throw new Error('Failed to stream chat. Please check your API Key or try again.');
+  }
+}

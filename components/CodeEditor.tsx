@@ -1,13 +1,16 @@
 import React, { useEffect, useRef } from 'react';
 import Editor, { Monaco } from '@monaco-editor/react';
 
+import { Loader2 } from 'lucide-react';
+
 interface CodeEditorProps {
   value: string;
   onChange: (value: string) => void;
   className?: string;
+  isLoading?: boolean;
 }
 
-const CodeEditor: React.FC<CodeEditorProps> = ({ value, onChange, className }) => {
+const CodeEditor: React.FC<CodeEditorProps> = ({ value, onChange, className, isLoading }) => {
   const editorRef = useRef<any>(null);
   const monacoRef = useRef<Monaco | null>(null);
 
@@ -58,7 +61,7 @@ const CodeEditor: React.FC<CodeEditorProps> = ({ value, onChange, className }) =
   };
 
   return (
-    <div className={className}>
+    <div className={`relative ${className}`}>
       <Editor
         height="100%"
         defaultLanguage="typescript"
@@ -74,8 +77,19 @@ const CodeEditor: React.FC<CodeEditorProps> = ({ value, onChange, className }) =
           scrollBeyondLastLine: false,
           automaticLayout: true,
           padding: { top: 16, bottom: 128 },
+          readOnly: isLoading,
         }}
       />
+      {isLoading && (
+        <div className="absolute inset-0 bg-zinc-950/50 backdrop-blur-sm z-10 flex flex-col items-center justify-center gap-3 animate-in fade-in duration-300">
+          <div className="w-12 h-12 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center shadow-2xl">
+            <Loader2 className="animate-spin text-purple-500" size={24} />
+          </div>
+          <div className="text-sm font-medium text-zinc-300 bg-zinc-900/80 px-4 py-2 rounded-full border border-zinc-800 backdrop-blur">
+            Generating code...
+          </div>
+        </div>
+      )}
     </div>
   );
 };

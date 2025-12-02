@@ -18,3 +18,10 @@ export interface ToneContextType {
   analyser: any | null;
   setVolume: (db: number) => void;
 }
+
+export interface Message {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: number;
+}
