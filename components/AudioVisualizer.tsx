@@ -45,10 +45,12 @@ const AudioVisualizer: React.FC<AudioVisualizerProps> = ({ className }) => {
       // Draw bars
       const barWidth = width / values.length;
 
-      // Create gradient
-      const gradient = ctx.createLinearGradient(0, height, 0, 0);
-      gradient.addColorStop(0, 'rgba(147, 51, 234, 0.2)'); // Purple
-      gradient.addColorStop(1, 'rgba(192, 132, 252, 0.6)'); // Lighter Purple
+      // Create gradient (Rainbow: Red -> Yellow -> Green -> Blue)
+      const gradient = ctx.createLinearGradient(0, 0, width, 0);
+      gradient.addColorStop(0, 'rgba(220, 38, 38, 0.6)'); // Red
+      gradient.addColorStop(0.33, 'rgba(234, 179, 8, 0.6)'); // Yellow
+      gradient.addColorStop(0.66, 'rgba(22, 163, 74, 0.6)'); // Green
+      gradient.addColorStop(1, 'rgba(37, 99, 235, 0.6)'); // Blue
 
       ctx.fillStyle = gradient;
 

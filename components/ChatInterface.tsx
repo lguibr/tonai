@@ -85,31 +85,49 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
               <button
                 onClick={() =>
                   onSendMessage(
-                    'I want some cozy music to play this Sunday, kind of like 16-bit retro'
+                    'Create a relaxing lo-fi track perfect for programming. Use 16-bit retro game elements, a slow cozy beat, and warm nostalgic chords.'
                   )
                 }
-                className="p-3 bg-zinc-900/50 hover:bg-zinc-800 border border-zinc-800 rounded-xl text-left text-sm transition-colors group"
+                className="p-3 bg-zinc-900/50 hover:bg-blue-500/10 border border-zinc-800 hover:border-blue-500/50 rounded-xl text-left text-sm transition-all group"
               >
-                <span className="block text-zinc-300 font-medium mb-1 group-hover:text-purple-400 transition-colors">
-                  Cozy 16-bit Retro
+                <span className="block text-zinc-300 font-medium mb-1 group-hover:text-blue-400 transition-colors">
+                  Cozy Lo-Fi Retro
                 </span>
-                <span className="text-zinc-500 text-xs">
-                  Relaxing Sunday vibes with nostalgic sounds
+                <span className="text-zinc-500 text-xs group-hover:text-zinc-400">
+                  Relaxing 16-bit vibes for coding
                 </span>
               </button>
 
               <button
                 onClick={() =>
                   onSendMessage(
-                    'Create a high-energy Cyberpunk track with heavy synth bass and fast-paced drums'
+                    'Generate a rhythmic Cyberpunk track with energetic drums, a marked bassline, and futuristic synth textures. Make it groovy and intense.'
                   )
                 }
-                className="p-3 bg-zinc-900/50 hover:bg-zinc-800 border border-zinc-800 rounded-xl text-left text-sm transition-colors group"
+                className="p-3 bg-zinc-900/50 hover:bg-red-500/10 border border-zinc-800 hover:border-red-500/50 rounded-xl text-left text-sm transition-all group"
               >
-                <span className="block text-zinc-300 font-medium mb-1 group-hover:text-purple-400 transition-colors">
-                  Cyberpunk Energy
+                <span className="block text-zinc-300 font-medium mb-1 group-hover:text-red-400 transition-colors">
+                  Rhythmic Cyberpunk
                 </span>
-                <span className="text-zinc-500 text-xs">Heavy synth bass and fast-paced drums</span>
+                <span className="text-zinc-500 text-xs group-hover:text-zinc-400">
+                  High energy drums and marked bass
+                </span>
+              </button>
+
+              <button
+                onClick={() =>
+                  onSendMessage(
+                    'Generate a high-energy Hard Rock Rockabilly track. Use a slapback echo guitar, a walking bassline, and a driving drum beat with a fast tempo. Make it raw and rebellious.'
+                  )
+                }
+                className="p-3 bg-zinc-900/50 hover:bg-yellow-500/10 border border-zinc-800 hover:border-yellow-500/50 rounded-xl text-left text-sm transition-all group"
+              >
+                <span className="block text-zinc-300 font-medium mb-1 group-hover:text-yellow-400 transition-colors">
+                  Hard Rock Rockabilly
+                </span>
+                <span className="text-zinc-500 text-xs group-hover:text-zinc-400">
+                  Raw, rebellious, and high energy
+                </span>
               </button>
 
               <button
@@ -118,12 +136,14 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                     'Generate a calm Ambient Nature soundscape with gentle pads and bird sounds'
                   )
                 }
-                className="p-3 bg-zinc-900/50 hover:bg-zinc-800 border border-zinc-800 rounded-xl text-left text-sm transition-colors group"
+                className="p-3 bg-zinc-900/50 hover:bg-green-500/10 border border-zinc-800 hover:border-green-500/50 rounded-xl text-left text-sm transition-all group"
               >
-                <span className="block text-zinc-300 font-medium mb-1 group-hover:text-purple-400 transition-colors">
+                <span className="block text-zinc-300 font-medium mb-1 group-hover:text-green-400 transition-colors">
                   Ambient Nature
                 </span>
-                <span className="text-zinc-500 text-xs">Gentle pads and calming atmosphere</span>
+                <span className="text-zinc-500 text-xs group-hover:text-zinc-400">
+                  Gentle pads and calming atmosphere
+                </span>
               </button>
             </div>
           </div>

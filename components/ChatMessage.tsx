@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import rehypeRaw from 'rehype-raw';
 import { cn } from '@/lib/utils';
 
 export interface Message {
@@ -159,8 +160,23 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onEdit, onDelete, on
                 {isThinkingExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
               </button>
               {isThinkingExpanded && (
-                <div className="text-xs text-zinc-500 italic whitespace-pre-wrap leading-relaxed animate-in fade-in slide-in-from-top-1">
-                  {thinkingContent}
+                <div className="text-xs text-zinc-500 italic leading-relaxed animate-in fade-in slide-in-from-top-1 prose prose-invert prose-p:leading-relaxed prose-pre:p-0 prose-pre:bg-transparent max-w-none [&>p]:mb-2 max-h-60 overflow-y-auto scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent pr-2">
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    rehypePlugins={[rehypeRaw]}
+                    components={{
+                      code: CodeBlock,
+                      p: ({ children }) => <p className="mb-1 last:mb-0">{children}</p>,
+                      ul: ({ children }) => (
+                        <ul className="list-disc pl-4 mb-1 space-y-0.5">{children}</ul>
+                      ),
+                      ol: ({ children }) => (
+                        <ol className="list-decimal pl-4 mb-1 space-y-0.5">{children}</ol>
+                      ),
+                    }}
+                  >
+                    {thinkingContent}
+                  </ReactMarkdown>
                 </div>
               )}
             </div>
@@ -193,6 +209,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onEdit, onDelete, on
               <div className="text-sm leading-relaxed prose prose-invert prose-p:leading-relaxed prose-pre:p-0 prose-pre:bg-transparent max-w-none">
                 <ReactMarkdown
                   remarkPlugins={[remarkGfm]}
+                  rehypePlugins={[rehypeRaw]}
                   components={{
                     code: CodeBlock,
                     p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,

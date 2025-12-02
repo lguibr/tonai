@@ -18,21 +18,29 @@ export const initializeAudio = async () => {
 
 export const resetAudio = () => {
   try {
+    // 1. Stop Transport first
     Tone.Transport.stop();
-    Tone.Transport.position = 0;
-    
-    // Fix: Explicitly pass 0 to prevent "Invalid argument to cancelScheduledValues" error
+
+    // 2. Cancel all scheduled events (passing 0 clears everything from time 0)
     Tone.Transport.cancel(0);
 
-    // Cancel automation on the BPM to prevent lingering ramps
-    if (Tone.Transport.bpm.cancelScheduledValues) {
-      Tone.Transport.bpm.cancelScheduledValues(0);
-    }
-    Tone.Transport.bpm.value = 120;
+    // 3. Reset position
+    Tone.Transport.position = 0;
 
-    // Also clear any automation on the master volume
-    if (Tone.Destination.volume.cancelScheduledValues) {
+    // 4. Cancel BPM automation
+    if (Tone.Transport.bpm) {
+      Tone.Transport.bpm.cancelScheduledValues(0);
+      Tone.Transport.bpm.value = 120;
+    }
+
+    // 5. Cancel Master Volume automation
+    if (Tone.Destination.volume) {
       Tone.Destination.volume.cancelScheduledValues(0);
+    }
+
+    // 6. Clear Draw events if any (visuals)
+    if (Tone.Draw) {
+      Tone.Draw.cancel(0);
     }
   } catch (e) {
     console.warn('Transport cancel warning:', e);

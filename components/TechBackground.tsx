@@ -14,9 +14,11 @@ const TechBackground: React.FC = () => {
       />
 
       {/* Animated Blobs */}
-      <div className="absolute top-[-20%] left-[-10%] w-[500px] h-[500px] bg-purple-600/20 rounded-full blur-[100px] animate-blob mix-blend-screen" />
-      <div className="absolute top-[20%] right-[-10%] w-[400px] h-[400px] bg-cyan-600/20 rounded-full blur-[100px] animate-blob animation-delay-2000 mix-blend-screen" />
-      <div className="absolute bottom-[-20%] left-[20%] w-[600px] h-[600px] bg-blue-600/20 rounded-full blur-[100px] animate-blob animation-delay-4000 mix-blend-screen" />
+      {/* Animated Blobs - Logo Colors (Red, Blue, Yellow, Green) */}
+      <div className="absolute top-[-20%] left-[-10%] w-[500px] h-[500px] bg-blue-600/20 rounded-full blur-[100px] animate-blob mix-blend-screen" />
+      <div className="absolute top-[20%] right-[-10%] w-[400px] h-[400px] bg-red-600/20 rounded-full blur-[100px] animate-blob animation-delay-2000 mix-blend-screen" />
+      <div className="absolute bottom-[-20%] left-[20%] w-[600px] h-[600px] bg-yellow-600/10 rounded-full blur-[100px] animate-blob animation-delay-4000 mix-blend-screen" />
+      <div className="absolute bottom-[-10%] right-[20%] w-[500px] h-[500px] bg-green-600/10 rounded-full blur-[100px] animate-blob animation-delay-6000 mix-blend-screen" />
 
       {/* Vignette Overlay */}
       <div className="absolute inset-0 bg-gradient-to-b from-zinc-950/50 via-transparent to-zinc-950/80" />

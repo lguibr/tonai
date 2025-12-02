@@ -501,7 +501,7 @@ ${code}`;
                             'w-12 h-12 rounded-full flex items-center justify-center transition-all shadow-lg hover:scale-105 active:scale-95 backdrop-blur-sm',
                             isPlaying
                               ? 'bg-white/10 hover:bg-white/20 text-white border border-white/20'
-                              : 'bg-purple-600/90 hover:bg-purple-500 text-white shadow-purple-900/40 border border-purple-400/20'
+                              : 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-400 hover:to-emerald-500 text-white shadow-green-900/40 border border-green-400/20'
                           )}
                           title={isPlaying ? 'Pause' : 'Play'}
                         >
@@ -554,7 +554,7 @@ ${code}`;
                         </div>
                         <div className="h-1.5 bg-white/5 rounded-full overflow-hidden border border-white/5">
                           {/* Progress bar could go here if we had total duration */}
-                          <div className="h-full bg-purple-500/50 w-0" />
+                          <div className="h-full bg-gradient-to-r from-red-500 via-yellow-500 to-green-500 w-0" />
                         </div>
                       </div>
 
@@ -578,7 +578,7 @@ ${code}`;
                           max="1"
                           step="0.01"
                           defaultValue="0.8"
-                          className="w-20 accent-purple-500 h-1 bg-white/10 rounded-lg appearance-none cursor-pointer"
+                          className="w-20 accent-blue-500 h-1 bg-white/10 rounded-lg appearance-none cursor-pointer"
                           onChange={(e) =>
                             Tone.getDestination().volume.rampTo(
                               Math.log10(parseFloat(e.target.value)) * 20,

@@ -1,5 +1,14 @@
-import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
+import { ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings } from '@langchain/google-genai';
 import { HumanMessage, SystemMessage, AIMessage } from '@langchain/core/messages';
+import { MemoryVectorStore } from '@langchain/classic/vectorstores/memory';
+import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters';
+import { Document } from '@langchain/core/documents';
+
+// Import context files as raw strings
+import systemPromptRaw from '../context/1_system_prompt.md?raw';
+import featuresExamplesRaw from '../context/2_features_examples.md?raw';
+import techInterfacesRaw from '../context/3_tech_interfaces.md?raw';
+import wikiRaw from '../context/4_comprehensive_wiki.md?raw';
 
 const STORAGE_KEY = 'tonai_gemini_api_key';
 
@@ -40,6 +49,93 @@ export const AVAILABLE_MODELS = [
 
 export const DEFAULT_MODEL = 'gemini-3-pro-preview';
 
+// --- RAG Implementation ---
+
+let vectorStore: MemoryVectorStore | null = null;
+let isIndexing = false;
+
+const initRAG = async (apiKey: string) => {
+  if (vectorStore || isIndexing) return;
+  isIndexing = true;
+
+  try {
+    console.log('Initializing RAG System...');
+    const embeddings = new GoogleGenerativeAIEmbeddings({
+      modelName: 'embedding-001', // Or text-embedding-004
+      apiKey: apiKey,
+    });
+
+    const docs = [
+      new Document({ pageContent: featuresExamplesRaw, metadata: { source: 'features_examples' } }),
+      new Document({ pageContent: techInterfacesRaw, metadata: { source: 'tech_interfaces' } }),
+      new Document({ pageContent: wikiRaw, metadata: { source: 'wiki' } }),
+    ];
+
+    const splitter = new RecursiveCharacterTextSplitter({
+      chunkSize: 1000,
+      chunkOverlap: 200,
+    });
+
+    const splitDocs = await splitter.splitDocuments(docs);
+
+    vectorStore = new MemoryVectorStore(embeddings);
+    await vectorStore.addDocuments(splitDocs);
+    console.log(`RAG System Initialized with ${splitDocs.length} chunks.`);
+  } catch (error) {
+    console.error('Failed to initialize RAG:', error);
+  } finally {
+    isIndexing = false;
+  }
+};
+
+const retrieveContext = async (query: string, apiKey: string): Promise<Document[]> => {
+  if (!vectorStore) {
+    await initRAG(apiKey);
+  }
+
+  if (!vectorStore) return []; // Fallback if init failed
+
+  try {
+    const results = await vectorStore.similaritySearch(query, 3); // Retrieve top 3 chunks
+    return results;
+  } catch (error) {
+    console.error('RAG Retrieval Error:', error);
+    return [];
+  }
+};
+
+const formatSources = (docs: Document[]): string => {
+  if (!docs || docs.length === 0) return '';
+
+  const sourcesList = docs
+    .map((doc) => {
+      const sourceName = doc.metadata.source || 'Unknown';
+      // Truncate content for display and escape markdown characters if needed
+      // Remove backticks to prevent nested code block issues in the UI
+      const cleanContent = doc.pageContent.replace(/`/g, "'");
+      const snippet = cleanContent.slice(0, 300).replace(/\n/g, ' ') + '...';
+
+      return `
+**Source: ${sourceName}**
+> ${snippet}
+`;
+    })
+    .join('\n');
+
+  return `
+<br/>
+
+<details>
+<summary><strong>📚 Referenced Sources (${docs.length})</strong></summary>
+
+${sourcesList}
+
+</details>
+`;
+};
+
+// --------------------------
+
 const getAI = (modelName: string = DEFAULT_MODEL, temperature: number = 0.7) => {
   const apiKey = getApiKey();
   if (!apiKey) {
@@ -51,35 +147,6 @@ const getAI = (modelName: string = DEFAULT_MODEL, temperature: number = 0.7) => 
     temperature: temperature,
   });
 };
-
-const SYSTEM_INSTRUCTION = `
-You are an expert audio engineer and JavaScript developer specializing in the 'tone' library (Tone.js).
-Your task is to generate valid, executable JavaScript code that creates a music loop or soundscape based on the user's prompt.
-
-Rules:
-1. Use 'Tone' (it is globally available).
-2. DO NOT import Tone. Assume 'Tone' is passed as an argument or available in scope.
-3. Construct instruments (Synths, Samplers) and Effects (Reverb, Delay, Distortion).
-4. Use 'Tone.Transport' to schedule events (e.g., Tone.Transport.schedule, Tone.Transport.scheduleRepeat, or Tone.Loop).
-5. ALWAYS connect instruments to 'Tone.Destination' or via a chain ending in 'Tone.Destination'.
-6. Set the BPM if relevant using 'Tone.Transport.bpm.value = ...'.
-7. DO NOT call 'Tone.Transport.start()'. The wrapper will handle starting the transport.
-8. DO NOT wrap the code in markdown blocks (like \`\`\`javascript). Return ONLY the raw code string.
-9. Keep the code concise but interesting.
-10. If the user asks for a specific genre, use appropriate scales and rhythms.
-
-CRITICAL PARAMETER SAFETY:
-- **Strictly adhere to these ranges to avoid crashes:**
-  - 'wet', 'feedback', 'probability', 'humanize', 'mix': **0 to 1**. (NEVER > 1).
-  - 'octaves' (for AutoWah, Phaser, etc): **1 to 6**. (NEVER > 6).
-  - 'Q' (Quality factor): **0.5 to 5**. (NEVER > 5).
-  - 'bits' (BitCrusher): **4 to 8**.
-  - 'roomSize' (JCReverb): **0 to 0.9** (Avoid 1).
-  - 'delayTime': **0 to 1** seconds or notation (e.g. "8n").
-  - 'playbackRate': **0.5 to 2**.
-- Volumes are in Decibels (dB) (e.g. -12, -6, 0). DO NOT use linear gain (0-1) for volume properties unless using a GainNode.
-- If you are unsure of a parameter's max value, stick to the default or a conservative value (e.g. 0.5).
-`;
 
 const cleanCode = (text: string) => {
   let code = text
@@ -101,9 +168,28 @@ export const generateMusicCode = async (
   model: string = DEFAULT_MODEL
 ): Promise<string> => {
   try {
+    const apiKey = getApiKey();
+    if (!apiKey) throw new Error('API Key required');
+
     const ai = getAI(model, 0.7);
+
+    // RAG Retrieval
+    const docs = await retrieveContext(prompt, apiKey);
+    const context = docs
+      .map((d) => `[Source: ${d.metadata.source}]\n${d.pageContent}`)
+      .join('\n\n');
+
+    const systemInstruction = `
+${systemPromptRaw}
+
+RETRIEVED CONTEXT FROM KNOWLEDGE BASE:
+${context}
+
+Use the above context to ensure your code uses correct Tone.js syntax and features.
+`;
+
     const messages = [
-      new SystemMessage(SYSTEM_INSTRUCTION),
+      new SystemMessage(systemInstruction),
       new HumanMessage(`Create a Tone.js composition for: ${prompt}`),
     ];
 
@@ -125,7 +211,23 @@ export const refineMusicCode = async (
   model: string = DEFAULT_MODEL
 ): Promise<string> => {
   try {
-    const ai = getAI(model, 0.5); // Lower temperature for edits to be more precise
+    const apiKey = getApiKey();
+    if (!apiKey) throw new Error('API Key required');
+
+    const ai = getAI(model, 0.5); // Lower temperature for edits
+
+    // RAG Retrieval for refinement
+    const docs = await retrieveContext(instruction, apiKey);
+    const context = docs
+      .map((d) => `[Source: ${d.metadata.source}]\n${d.pageContent}`)
+      .join('\n\n');
+
+    const systemInstruction = `
+${systemPromptRaw}
+
+RETRIEVED CONTEXT:
+${context}
+`;
 
     let userPrompt = `
     EXISTING CODE:
@@ -154,7 +256,7 @@ export const refineMusicCode = async (
     `;
     }
 
-    const messages = [new SystemMessage(SYSTEM_INSTRUCTION), new HumanMessage(userPrompt)];
+    const messages = [new SystemMessage(systemInstruction), new HumanMessage(userPrompt)];
 
     const response = await ai.invoke(messages);
     return cleanCode(response.content as string);
@@ -173,10 +275,27 @@ export const chatWithAI = async (
   model: string = DEFAULT_MODEL
 ): Promise<{ text: string; code?: string }> => {
   try {
+    const apiKey = getApiKey();
+    if (!apiKey) throw new Error('API Key required');
+
     const ai = getAI(model, 0.7);
 
+    // Get the last user message for RAG
+    const lastUserMessage =
+      messages
+        .slice()
+        .reverse()
+        .find((m) => m.role === 'user')?.content || '';
+    const docs = await retrieveContext(lastUserMessage, apiKey);
+    const context = docs
+      .map((d) => `[Source: ${d.metadata.source}]\n${d.pageContent}`)
+      .join('\n\n');
+
     const systemPrompt = `
-${SYSTEM_INSTRUCTION}
+${systemPromptRaw}
+
+RETRIEVED CONTEXT:
+${context}
 
 ADDITIONAL INSTRUCTIONS FOR CHAT:
 1. You are chatting with a user who wants to create music.
@@ -211,7 +330,7 @@ ADDITIONAL INSTRUCTIONS FOR CHAT:
     const finalMessages = [new SystemMessage(systemPrompt), ...chatHistory];
 
     const response = await ai.invoke(finalMessages);
-    const content = response.content as string;
+    let content = response.content as string;
 
     // Extract code if present
     const codeMatch = content.match(/```(?:javascript|typescript)?\s*([\s\S]*?)\s*```/);
@@ -220,16 +339,14 @@ ADDITIONAL INSTRUCTIONS FOR CHAT:
 
     if (codeMatch) {
       code = cleanCode(codeMatch[1]);
-      // Optional: Remove code from text to keep chat clean, or keep it.
-      // Let's keep it in the text so the user sees what was generated in the chat bubble too,
-      // or we can strip it if we want the chat to be text-only and the editor to show the code.
-      // For "Open Canvas" feel, usually the chat shows a summary and the canvas shows the code.
-      // Let's strip the large code block from the text to avoid cluttering the chat.
       text = content.replace(
         /```(?:javascript|typescript)?\s*([\s\S]*?)\s*```/,
         '[Code updated in Editor]'
       );
     }
+
+    // Append sources
+    text += formatSources(docs);
 
     return { text, code };
   } catch (error: any) {
@@ -247,10 +364,27 @@ export async function* streamChatWithAI(
   model: string = DEFAULT_MODEL
 ): AsyncGenerator<string, void, unknown> {
   try {
+    const apiKey = getApiKey();
+    if (!apiKey) throw new Error('API Key required');
+
     const ai = getAI(model, 0.7);
 
+    // Get the last user message for RAG
+    const lastUserMessage =
+      messages
+        .slice()
+        .reverse()
+        .find((m) => m.role === 'user')?.content || '';
+    const docs = await retrieveContext(lastUserMessage, apiKey);
+    const context = docs
+      .map((d) => `[Source: ${d.metadata.source}]\n${d.pageContent}`)
+      .join('\n\n');
+
     const systemPrompt = `
-${SYSTEM_INSTRUCTION}
+${systemPromptRaw}
+
+RETRIEVED CONTEXT:
+${context}
 
 ADDITIONAL INSTRUCTIONS FOR CHAT:
 1. You are chatting with a user who wants to create music.
@@ -289,6 +423,12 @@ ADDITIONAL INSTRUCTIONS FOR CHAT:
       if (chunk.content) {
         yield chunk.content as string;
       }
+    }
+
+    // Append sources at the end of the stream
+    const sourcesHtml = formatSources(docs);
+    if (sourcesHtml) {
+      yield sourcesHtml;
     }
   } catch (error: any) {
     console.error('Gemini Stream Error:', error);
