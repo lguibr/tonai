@@ -6,70 +6,52 @@
   width="400"
 />
 
-**The Context-Aware Generative Audio Workstation.**
+**Create music from text.**
 
-TonAI is a cutting-edge web application that empowers you to create, refine, and visualize music and soundscapes using the power of **Generative AI** and **Tone.js**. Unlike standard chatbots, TonAI is **context-aware**—it references a vast internal library of audio engineering knowledge to write precise, high-quality audio code in real-time.
+[Live Demo](https://tonai.luisguilher.me)
+
+TonAI is a simple web app that lets you create and visualize music using a chat interface. Just describe what you want to hear, and it plays it for you.
 
 ---
 
 ## ✨ Features
 
-### 🧠 RAG-Powered Intelligence
+### 💬 Chat Interface
 
-TonAI doesn't just guess; it knows. Using **Retrieval Augmented Generation (RAG)**, the system consults a comprehensive knowledge base of:
+Simply type a description like "upbeat techno with a heavy bass" or "calm ambient sounds for studying", and TonAI will generate the audio code to play it.
 
-- **Tone.js Technical Interfaces**: Exact parameter ranges and method signatures.
-- **Compositional Heuristics**: Rules for genres like Techno, Ambient, and Rockabilly.
-- **Safety Protocols**: Prevents ear-piercing feedback loops and volume spikes.
+### 🌊 Live Visualizer
 
-### 💭 Transparent Thinking Process
+See your music in real-time with a clean, glassmorphic frequency visualizer.
 
-Watch the AI think. Before writing a single line of code, TonAI displays its **Thinking Process**, breaking down the user's request into musical parameters (BPM, Key, Instruments) and a step-by-step composition plan.
-
-### 📚 Smart Source Citations
-
-Trust but verify. Every generated track includes a **collapsible "Referenced Sources" section**, showing you exactly which documentation chunks the AI used to craft your sound.
-
-### 🌊 Live Glassmorphic Visualizer
-
-See your sound. The application features a stunning, **real-time frequency visualizer** built on a glassmorphic canvas, providing immediate visual feedback on the audio spectrum.
-
-### ⚡ Real-Time Streaming
-
-Experience zero latency. The AI streams its response token-by-token, allowing you to read the plan and see the code being written in real-time.
-
-### 🎛️ Studio-Grade Controls
+### 🎛️ Playback Controls
 
 - **Playback**: Play, Pause, Stop, and Seek.
-- **Mixing**: Master Volume control with logarithmic scaling.
-- **Recording**: Capture your sessions as high-quality **WebM** audio files.
-- **Library**: Save and load your favorite scripts using local **IndexedDB**.
+- **Mixing**: Master Volume control.
+- **Recording**: Save your creations as **WebM** audio files.
+- **Library**: Your scripts are saved locally so you can revisit them.
 
 ---
 
 ## 🚀 Quick Start Presets
 
-Jump right in with our curated genre presets:
+Not sure what to type? Try one of these:
 
-1.  **🔵 Cozy Lo-Fi Retro**: Relaxing 16-bit vibes for coding.
-2.  **🔴 Rhythmic Cyberpunk**: High-energy drums and marked bass.
-3.  **🟡 Hard Rock Rockabilly**: Raw, rebellious, slapback echo guitars.
-4.  **🟢 Ambient Nature**: Gentle pads and calming atmosphere.
+1.  **🔵 Cozy Lo-Fi Retro**: Relaxing 16-bit vibes.
+2.  **🔴 Rhythmic Cyberpunk**: High-energy drums and bass.
+3.  **🟡 Hard Rock Rockabilly**: Raw, slapback echo guitars.
+4.  **🟢 Ambient Nature**: Gentle pads and atmosphere.
 
 ---
 
 ## 🏗️ Architecture
 
-TonAI is built with a modern, performance-focused stack:
+TonAI is built with:
 
-- **Frontend**: React 18 + Vite (Lightning-fast performance).
-- **Styling**: Tailwind CSS + shadcn/ui (Sleek, dark-mode aesthetic).
-- **Audio Engine**: [Tone.js](https://tonejs.github.io/) (Web Audio API abstraction).
-- **AI Orchestration**:
-  - **LangChain**: For managing the RAG pipeline and chat history.
-  - **Google Gemini**: The core LLM (Gemini 3 Pro / 2.5 Flash).
-  - **Vector Store**: In-memory vector search for context retrieval.
-- **Markdown Rendering**: `react-markdown` + `rehype-raw` for rich text and HTML support.
+- **Frontend**: React 18 + Vite.
+- **Styling**: Tailwind CSS + shadcn/ui.
+- **Audio Engine**: [Tone.js](https://tonejs.github.io/).
+- **AI**: Google Gemini.
 
 ---
 
