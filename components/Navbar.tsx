@@ -8,8 +8,11 @@ interface NavbarProps {
 const Navbar: React.FC<NavbarProps> = ({ onSettingsClick }) => {
   return (
     <div className="h-14 border-b border-zinc-800 bg-zinc-950 flex items-center justify-between px-6 shrink-0 z-50">
-      <div className="flex items-center gap-3">
-        <img src="/logo.png" alt="TonAI" className="h-8 w-auto" />
+      <div
+        className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity"
+        onClick={() => window.location.reload()}
+      >
+        <img src="/logo.png" alt="TonAI Logo" className="h-8 w-auto" />
       </div>
 
       <div className="flex items-center gap-4">

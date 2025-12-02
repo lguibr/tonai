@@ -20,6 +20,7 @@ import * as Dialog from '@radix-ui/react-dialog';
 import { PanelGroup, Panel, PanelResizeHandle } from 'react-resizable-panels';
 import { cn } from '@/lib/utils';
 import { useMediaQuery } from './hooks/use-media-query';
+import AudioVisualizer from './components/AudioVisualizer';
 
 import {
   generateMusicCode,
@@ -482,97 +483,110 @@ ${code}`;
                   </div>
 
                   {/* Visualization / Controls Area (Bottom) */}
-                  <div className="h-20 bg-zinc-900 border-t border-zinc-800 flex items-center px-6 gap-4 shrink-0 z-20">
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={togglePlayback}
-                        className={cn(
-                          'w-12 h-12 rounded-full flex items-center justify-center transition-all shadow-lg hover:scale-105 active:scale-95',
-                          isPlaying
-                            ? 'bg-zinc-800 hover:bg-zinc-700 text-white border border-zinc-700'
-                            : 'bg-purple-600 hover:bg-purple-700 text-white shadow-purple-900/20'
-                        )}
-                        title={isPlaying ? 'Pause' : 'Play'}
-                      >
-                        {isPlaying ? (
-                          <Pause size={18} fill="currentColor" />
-                        ) : (
-                          <Play size={24} fill="currentColor" className="ml-1" />
-                        )}
-                      </button>
+                  <div className="h-24 relative shrink-0 z-20 overflow-hidden">
+                    {/* Visualizer Background */}
+                    <div className="absolute inset-0 z-0">
+                      <AudioVisualizer className="w-full h-full opacity-50" />
+                    </div>
 
-                      <button
-                        onClick={handleStop}
-                        className="w-10 h-10 rounded-full bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white flex items-center justify-center transition-all border border-zinc-700"
-                        title="Stop"
-                      >
-                        <Square size={14} fill="currentColor" />
-                      </button>
+                    {/* Glassmorphic Overlay */}
+                    <div className="absolute inset-0 z-10 bg-black/40 backdrop-blur-md border-t border-white/10" />
 
-                      <button
-                        onClick={handleToggleRecord}
-                        className={cn(
-                          'w-10 h-10 rounded-full flex items-center justify-center transition-all border',
-                          isRecording
-                            ? 'bg-red-500/10 border-red-500 text-red-500 animate-pulse'
-                            : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:text-red-500 hover:border-red-500/50'
-                        )}
-                        title={isRecording ? 'Stop Recording' : 'Record Audio'}
-                      >
-                        <div
+                    {/* Controls Content */}
+                    <div className="relative z-20 h-full flex items-center px-6 gap-6">
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={togglePlayback}
                           className={cn(
-                            'rounded-full bg-current',
-                            isRecording ? 'w-3 h-3 rounded-sm' : 'w-3 h-3'
+                            'w-12 h-12 rounded-full flex items-center justify-center transition-all shadow-lg hover:scale-105 active:scale-95 backdrop-blur-sm',
+                            isPlaying
+                              ? 'bg-white/10 hover:bg-white/20 text-white border border-white/20'
+                              : 'bg-purple-600/90 hover:bg-purple-500 text-white shadow-purple-900/40 border border-purple-400/20'
                           )}
-                        />
-                      </button>
-                    </div>
+                          title={isPlaying ? 'Pause' : 'Play'}
+                        >
+                          {isPlaying ? (
+                            <Pause size={18} fill="currentColor" />
+                          ) : (
+                            <Play size={24} fill="currentColor" className="ml-1" />
+                          )}
+                        </button>
 
-                    <div className="flex-1 flex flex-col justify-center gap-1">
-                      <div className="flex items-center justify-between text-xs text-zinc-500 font-mono">
-                        <span>POS</span>
-                        <span>{formatTime(currentTime)}</span>
+                        <button
+                          onClick={handleStop}
+                          className="w-10 h-10 rounded-full bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white flex items-center justify-center transition-all border border-white/10 backdrop-blur-sm"
+                          title="Stop"
+                        >
+                          <Square size={14} fill="currentColor" />
+                        </button>
+
+                        <button
+                          onClick={handleToggleRecord}
+                          className={cn(
+                            'w-10 h-10 rounded-full flex items-center justify-center transition-all border backdrop-blur-sm',
+                            isRecording
+                              ? 'bg-red-500/20 border-red-500/50 text-red-500 animate-pulse'
+                              : 'bg-white/5 border-white/10 text-zinc-400 hover:text-red-400 hover:border-red-500/30 hover:bg-red-500/10'
+                          )}
+                          title={isRecording ? 'Stop Recording' : 'Record Audio'}
+                        >
+                          <div
+                            className={cn(
+                              'rounded-full bg-current',
+                              isRecording ? 'w-3 h-3 rounded-sm' : 'w-3 h-3'
+                            )}
+                          />
+                        </button>
                       </div>
-                      <div className="h-1 bg-zinc-800 rounded-full overflow-hidden">
-                        {/* Progress bar could go here if we had total duration */}
-                        <div className="h-full bg-purple-600/50 w-0" />
+
+                      <div className="flex-1 flex flex-col justify-center gap-1.5">
+                        <div className="flex items-center justify-between text-xs text-zinc-400 font-mono tracking-wider">
+                          <span className="flex items-center gap-1.5">
+                            <div
+                              className={cn(
+                                'w-1.5 h-1.5 rounded-full',
+                                isPlaying ? 'bg-green-500 animate-pulse' : 'bg-zinc-600'
+                              )}
+                            />
+                            {isPlaying ? 'PLAYING' : 'READY'}
+                          </span>
+                          <span>{formatTime(currentTime)}</span>
+                        </div>
+                        <div className="h-1.5 bg-white/5 rounded-full overflow-hidden border border-white/5">
+                          {/* Progress bar could go here if we had total duration */}
+                          <div className="h-full bg-purple-500/50 w-0" />
+                        </div>
                       </div>
-                    </div>
 
-                    <div className="flex items-center gap-2">
-                      {isMuted ? (
-                        <VolumeX
-                          size={18}
-                          className="text-zinc-500 cursor-pointer"
-                          onClick={() => setIsMuted(false)}
+                      <div className="flex items-center gap-3 bg-white/5 px-3 py-1.5 rounded-full border border-white/5 backdrop-blur-sm">
+                        {isMuted ? (
+                          <VolumeX
+                            size={16}
+                            className="text-zinc-400 cursor-pointer hover:text-white transition-colors"
+                            onClick={() => setIsMuted(false)}
+                          />
+                        ) : (
+                          <Volume2
+                            size={16}
+                            className="text-zinc-400 cursor-pointer hover:text-white transition-colors"
+                            onClick={() => setIsMuted(true)}
+                          />
+                        )}
+                        <input
+                          type="range"
+                          min="0"
+                          max="1"
+                          step="0.01"
+                          defaultValue="0.8"
+                          className="w-20 accent-purple-500 h-1 bg-white/10 rounded-lg appearance-none cursor-pointer"
+                          onChange={(e) =>
+                            Tone.getDestination().volume.rampTo(
+                              Math.log10(parseFloat(e.target.value)) * 20,
+                              0.1
+                            )
+                          }
                         />
-                      ) : (
-                        <Volume2
-                          size={18}
-                          className="text-zinc-400 cursor-pointer"
-                          onClick={() => setIsMuted(true)}
-                        />
-                      )}
-                      <input
-                        type="range"
-                        min="0"
-                        max="1"
-                        step="0.01"
-                        defaultValue="0.8"
-                        className="w-24 accent-purple-600 h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer"
-                        onChange={(e) =>
-                          Tone.getDestination().volume.rampTo(
-                            Math.log10(parseFloat(e.target.value)) * 20,
-                            0.1
-                          )
-                        }
-                      />
-                    </div>
-
-                    <div className="h-8 w-[1px] bg-zinc-800 mx-2" />
-
-                    <div className="flex items-center gap-2">
-                      {/* Additional controls can go here */}
+                      </div>
                     </div>
                   </div>
                 </div>

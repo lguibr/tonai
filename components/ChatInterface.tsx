@@ -2,6 +2,7 @@ import React, { useRef, useEffect } from 'react';
 import { Send, Loader2, StopCircle, Settings, Wrench } from 'lucide-react';
 import ChatMessage, { Message } from './ChatMessage';
 import { Button } from '@/components/ui/button';
+import TechBackground from './TechBackground';
 
 interface ChatInterfaceProps {
   messages: Message[];
@@ -62,22 +63,68 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   };
 
   return (
-    <div className="flex flex-col h-full bg-zinc-950">
+    <div className="flex flex-col h-full bg-zinc-950 relative overflow-hidden">
+      <TechBackground />
       {/* Messages Area */}
       <div
         ref={scrollRef}
-        className="flex-1 overflow-y-auto p-4 space-y-6 scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent"
+        className="flex-1 overflow-y-auto p-4 space-y-6 scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent relative z-10"
       >
         {messages.length === 0 ? (
-          <div className="h-full flex flex-col items-center justify-center p-8 text-center text-zinc-500 space-y-4">
-            <div className="w-12 h-12 rounded-xl bg-zinc-900 flex items-center justify-center border border-zinc-800">
-              <Send size={20} />
-            </div>
-            <div>
-              <h3 className="text-zinc-300 font-medium mb-1">Welcome to TonAI</h3>
-              <p className="text-sm">
-                Describe the music you want to create, or ask for changes to the current code.
+          <div className="h-full flex flex-col items-center justify-center p-8 text-center text-zinc-500 space-y-8">
+            <div className="space-y-6">
+              <div className="flex justify-center">
+                <img src="/logo.png" alt="TonAI" className="h-24 w-auto opacity-90" />
+              </div>
+              <p className="text-zinc-400 max-w-xs mx-auto">
+                Welcome! Describe the music you want to create, or pick a starter below.
               </p>
+            </div>
+
+            <div className="grid grid-cols-1 gap-2 w-full max-w-md">
+              <button
+                onClick={() =>
+                  onSendMessage(
+                    'I want some cozy music to play this Sunday, kind of like 16-bit retro'
+                  )
+                }
+                className="p-3 bg-zinc-900/50 hover:bg-zinc-800 border border-zinc-800 rounded-xl text-left text-sm transition-colors group"
+              >
+                <span className="block text-zinc-300 font-medium mb-1 group-hover:text-purple-400 transition-colors">
+                  Cozy 16-bit Retro
+                </span>
+                <span className="text-zinc-500 text-xs">
+                  Relaxing Sunday vibes with nostalgic sounds
+                </span>
+              </button>
+
+              <button
+                onClick={() =>
+                  onSendMessage(
+                    'Create a high-energy Cyberpunk track with heavy synth bass and fast-paced drums'
+                  )
+                }
+                className="p-3 bg-zinc-900/50 hover:bg-zinc-800 border border-zinc-800 rounded-xl text-left text-sm transition-colors group"
+              >
+                <span className="block text-zinc-300 font-medium mb-1 group-hover:text-purple-400 transition-colors">
+                  Cyberpunk Energy
+                </span>
+                <span className="text-zinc-500 text-xs">Heavy synth bass and fast-paced drums</span>
+              </button>
+
+              <button
+                onClick={() =>
+                  onSendMessage(
+                    'Generate a calm Ambient Nature soundscape with gentle pads and bird sounds'
+                  )
+                }
+                className="p-3 bg-zinc-900/50 hover:bg-zinc-800 border border-zinc-800 rounded-xl text-left text-sm transition-colors group"
+              >
+                <span className="block text-zinc-300 font-medium mb-1 group-hover:text-purple-400 transition-colors">
+                  Ambient Nature
+                </span>
+                <span className="text-zinc-500 text-xs">Gentle pads and calming atmosphere</span>
+              </button>
             </div>
           </div>
         ) : (
@@ -96,7 +143,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       </div>
 
       {/* Input Area */}
-      <div className="p-4 border-t border-zinc-800 bg-zinc-950 space-y-3">
+      <div className="p-4 border-t border-zinc-800 bg-zinc-950/80 backdrop-blur-md space-y-3 relative z-20">
         {error && onQuickFix && (
           <button
             onClick={onQuickFix}
@@ -138,9 +185,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
               </Button>
             )}
           </div>
-        </div>
-        <div className="text-center">
-          <p className="text-[10px] text-zinc-600">AI can make mistakes. Check the code.</p>
         </div>
       </div>
     </div>
