@@ -110,17 +110,23 @@ const formatSources = (docs: Document[]): string => {
   const sourcesList = docs
     .map((doc) => {
       const sourceName = doc.metadata.source || 'Unknown';
-      // Truncate content for display and escape markdown characters if needed
-      // Remove backticks to prevent nested code block issues in the UI
-      const cleanContent = doc.pageContent.replace(/`/g, "'");
-      const snippet = cleanContent.slice(0, 300).replace(/\n/g, ' ') + '...';
+      // Truncate content for display but PRESERVE NEWLINES
+      const cleanContent = doc.pageContent.replace(/`/g, "'"); // minimal escaping
+      let snippet = cleanContent.slice(0, 500); // Increased limit
+      if (cleanContent.length > 500) snippet += '...';
+
+      // Format as a blockquote, ensuring each line is quoted
+      const quotedSnippet = snippet
+        .split('\n')
+        .map((line) => `> ${line}`)
+        .join('\n');
 
       return `
 **Source: ${sourceName}**
-> ${snippet}
+${quotedSnippet}
 `;
     })
-    .join('\n');
+    .join('\n\n');
 
   return `
 <br/>
@@ -330,7 +336,7 @@ ADDITIONAL INSTRUCTIONS FOR CHAT:
     const finalMessages = [new SystemMessage(systemPrompt), ...chatHistory];
 
     const response = await ai.invoke(finalMessages);
-    let content = response.content as string;
+    const content = response.content as string;
 
     // Extract code if present
     const codeMatch = content.match(/```(?:javascript|typescript)?\s*([\s\S]*?)\s*```/);

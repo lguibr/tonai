@@ -81,12 +81,10 @@ const CodeEditor: React.FC<CodeEditorProps> = ({ value, onChange, className, isL
         }}
       />
       {isLoading && (
-        <div className="absolute inset-0 bg-zinc-950/50 backdrop-blur-sm z-10 flex flex-col items-center justify-center gap-3 animate-in fade-in duration-300">
-          <div className="w-12 h-12 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center shadow-2xl">
-            <Loader2 className="animate-spin text-purple-500" size={24} />
-          </div>
-          <div className="text-sm font-medium text-zinc-300 bg-zinc-900/80 px-4 py-2 rounded-full border border-zinc-800 backdrop-blur">
-            Generating code...
+        <div className="absolute bottom-4 right-4 z-10 flex items-center gap-3 animate-in slide-in-from-bottom-2 duration-300">
+          <div className="flex items-center gap-2 text-xs font-medium text-zinc-300 bg-zinc-900/90 px-3 py-1.5 rounded-full border border-zinc-700/50 shadow-xl backdrop-blur-md">
+            <Loader2 className="animate-spin text-purple-500" size={14} />
+            <span>Generating code...</span>
           </div>
         </div>
       )}

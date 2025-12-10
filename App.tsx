@@ -34,6 +34,7 @@ import {
 import {
   executeCode,
   stopTransport,
+  forceStop,
   startTransport,
   initializeAudio,
   setMasterVolume,
@@ -62,7 +63,14 @@ const TonAIApp: React.FC = () => {
   const [apiKeyOpen, setApiKeyOpen] = useState(false);
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [libraryMode, setLibraryMode] = useState<'save' | 'load'>('load');
-  const [selectedModel, setSelectedModel] = useState(DEFAULT_MODEL);
+  const [selectedModel, setSelectedModel] = useState(() => {
+    return localStorage.getItem('tonai_selected_model') || DEFAULT_MODEL;
+  });
+
+  const handleModelChange = (model: string) => {
+    setSelectedModel(model);
+    localStorage.setItem('tonai_selected_model', model);
+  };
 
   // New State for Layout/UI
   const [apiKey, setApiKey] = useState('');
@@ -136,9 +144,49 @@ const TonAIApp: React.FC = () => {
         setMessages((prev) =>
           prev.map((m) => (m.id === aiMsgId ? { ...m, content: fullContent } : m))
         );
+
+        // Real-time code extraction
+        // Look for the start of a code block and capture everything until the end or current position
+        const codeStartMatch = fullContent.match(/```(?:javascript|typescript)?\s*/);
+        if (codeStartMatch && codeStartMatch.index !== undefined) {
+          const startIndex = codeStartMatch.index + codeStartMatch[0].length;
+          // Check if there is an end block
+          const endMatch = fullContent.substr(startIndex).match(/```/);
+          let extractedCode = '';
+
+          if (endMatch && endMatch.index !== undefined) {
+            // Complete block found
+            extractedCode = fullContent.substr(startIndex, endMatch.index);
+          } else {
+            // Partial block - take everything so far
+            extractedCode = fullContent.substr(startIndex);
+          }
+
+          if (extractedCode.trim().length > 10) {
+            // arbitrary threshold to avoid noise
+            let finalCode = extractedCode
+              .replace(/```javascript/g, '')
+              .replace(/```typescript/g, '')
+              .replace(/```/g, '') // Extra cleanup just in case
+              .trim();
+
+            if (
+              !finalCode.startsWith("import * as Tone from 'tone';") &&
+              finalCode.includes('Tone.')
+            ) {
+              finalCode = `import * as Tone from 'tone';\n\n${finalCode}`;
+            }
+
+            // Only update if it looks like valid code (basic heuristic) and is different
+            if (finalCode !== code) {
+              setCode(finalCode);
+            }
+          }
+        }
       }
 
-      // Post-processing: Extract code
+      // Final Post-processing: Ensure we got the final clean code
+
       const codeMatch = fullContent.match(/```(?:javascript|typescript)?\s*([\s\S]*?)\s*```/);
       if (codeMatch) {
         const extractedCode = codeMatch[1]
@@ -193,7 +241,7 @@ const TonAIApp: React.FC = () => {
       console.error(e);
       setError(e.message || 'Runtime Error in Code');
       setPlayState(PlayState.STOPPED);
-      stopTransport();
+      forceStop();
     }
   };
 
@@ -203,7 +251,7 @@ const TonAIApp: React.FC = () => {
   };
 
   const handleStop = () => {
-    stopTransport();
+    forceStop();
     setPlayState(PlayState.STOPPED);
     setIsRecording(false); // Stop recording if stopping playback
     setCurrentTime(0);
@@ -270,7 +318,9 @@ ${code}`;
   };
 
   const handleAutoFix = () => {
-    const fixMsg = 'The code crashed with a runtime error. Please fix it.';
+    const fixMsg = error
+      ? `The code crashed with this error: "${error}". Please fix the code.`
+      : 'The code crashed with a runtime error. Please fix it.';
     handleSendMessage(fixMsg);
   };
 
@@ -317,7 +367,7 @@ ${code}`;
     // If rerunning a user message: Keep it, remove everything after, trigger AI
     // If rerunning an AI message: Remove it, remove everything after, trigger AI
 
-    let newHistory = messages.slice(0, msgIndex);
+    const newHistory = messages.slice(0, msgIndex);
     let messageToProcess = '';
 
     if (targetMsg.role === 'user') {
@@ -409,6 +459,8 @@ ${code}`;
         <PanelGroup direction={isTablet ? 'horizontal' : 'vertical'}>
           {/* Left Sidebar (Chat) */}
           <Panel
+            id="chat-panel"
+            order={1}
             defaultSize={isDesktop ? 33 : 50}
             minSize={20}
             className="flex flex-col border-r border-zinc-800 bg-zinc-950"
@@ -423,6 +475,8 @@ ${code}`;
               onEdit={handleEditMessage}
               onDelete={handleDeleteMessage}
               onRerun={handleRerun}
+              selectedModel={selectedModel}
+              onModelChange={handleModelChange}
             />
           </Panel>
 
@@ -437,8 +491,8 @@ ${code}`;
                 <div className={cn('bg-zinc-600 rounded-full', isTablet ? 'h-8 w-1' : 'w-8 h-1')} />
               </PanelResizeHandle>
 
-              {/* Right Main Area: Editor & Viz */}
-              <Panel defaultSize={isDesktop ? 67 : 50} minSize={20}>
+              {/* Right Main Area: Editor & Viz - Auto-calculated remaining space */}
+              <Panel id="editor-panel" order={2} minSize={20}>
                 <div className="flex flex-col h-full overflow-hidden bg-[#1e1e1e]">
                   {/* Code Editor Section */}
                   <div className="flex-1 relative bg-[#1e1e1e] flex flex-col min-h-0">
@@ -497,11 +551,16 @@ ${code}`;
                       <div className="flex items-center gap-3">
                         <button
                           onClick={togglePlayback}
+                          disabled={isLoading && !isPlaying}
                           className={cn(
-                            'w-12 h-12 rounded-full flex items-center justify-center transition-all shadow-lg hover:scale-105 active:scale-95 backdrop-blur-sm',
-                            isPlaying
-                              ? 'bg-white/10 hover:bg-white/20 text-white border border-white/20'
-                              : 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-400 hover:to-emerald-500 text-white shadow-green-900/40 border border-green-400/20'
+                            'w-12 h-12 rounded-full flex items-center justify-center transition-all shadow-lg backdrop-blur-sm',
+                            isLoading && !isPlaying
+                              ? 'bg-zinc-800 text-zinc-600 cursor-not-allowed border border-zinc-700'
+                              : 'hover:scale-105 active:scale-95',
+                            !isLoading &&
+                              (isPlaying
+                                ? 'bg-white/10 hover:bg-white/20 text-white border border-white/20'
+                                : 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-400 hover:to-emerald-500 text-white shadow-green-900/40 border border-green-400/20')
                           )}
                           title={isPlaying ? 'Pause' : 'Play'}
                         >

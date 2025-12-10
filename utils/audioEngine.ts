@@ -13,6 +13,9 @@ export const initializeAudio = async () => {
     Tone.Destination.connect(recorder);
   }
 
+  // Ensure we are not muted from a previous stop
+  Tone.Destination.mute = false;
+
   console.log('Audio Context Started');
 };
 
@@ -79,6 +82,33 @@ export const executeCode = async (code: string) => {
 export const stopTransport = () => {
   Tone.Transport.stop();
   Tone.Transport.position = 0;
+};
+
+export const forceStop = () => {
+  try {
+    // 1. Instant Silence
+    Tone.Destination.mute = true;
+
+    // 2. Stop everything
+    Tone.Transport.stop();
+    Tone.Transport.cancel(0);
+    Tone.Transport.position = 0;
+
+    // 3. Clear all scheduled events on Master/Destination
+    if (Tone.Destination.volume) {
+      Tone.Destination.volume.cancelScheduledValues(0);
+    }
+
+    // 4. Kill visuals
+    if (Tone.Draw) {
+      Tone.Draw.cancel(0);
+    }
+
+    // Note: We leave it muted. initializeAudio() called by Play will unmute it.
+    // This ensures tails don't come back if we just unmuted immediately.
+  } catch (e) {
+    console.warn('Force stop error:', e);
+  }
 };
 
 export const startTransport = () => {

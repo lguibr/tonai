@@ -81,6 +81,7 @@ const LibraryDialog: React.FC<LibraryDialogProps> = ({
 
   useEffect(() => {
     if (open) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       loadData();
       if (mode === 'save') {
         setView('save');

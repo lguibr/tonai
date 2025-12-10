@@ -14,7 +14,11 @@ interface ChatInterfaceProps {
   onEdit?: (id: string, newContent: string) => void;
   onDelete?: (id: string) => void;
   onRerun?: (id: string) => void;
+  selectedModel: string;
+  onModelChange: (model: string) => void;
 }
+
+import { AVAILABLE_MODELS } from '../services/geminiService';
 
 const ChatInterface: React.FC<ChatInterfaceProps> = ({
   messages,
@@ -26,6 +30,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   onEdit,
   onDelete,
   onRerun,
+  selectedModel,
+  onModelChange,
 }) => {
   const [input, setInput] = React.useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -65,6 +71,39 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   return (
     <div className="flex flex-col h-full bg-zinc-950 relative overflow-hidden">
       <TechBackground />
+
+      {/* Header with Model Selector */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800 bg-zinc-950/80 backdrop-blur-sm relative z-20 shrink-0">
+        <div className="flex items-center gap-2">
+          <Settings size={14} className="text-zinc-400" />
+          <span className="text-xs font-medium text-zinc-400 uppercase tracking-wider">
+            AI Model
+          </span>
+        </div>
+        <div className="relative">
+          <select
+            value={selectedModel}
+            onChange={(e) => onModelChange(e.target.value)}
+            className="appearance-none bg-zinc-900 border border-zinc-700 text-zinc-200 text-xs rounded-md pl-3 pr-8 py-1.5 focus:outline-none focus:ring-1 focus:ring-purple-500/50 cursor-pointer hover:border-zinc-600 transition-colors"
+          >
+            {AVAILABLE_MODELS.map((model) => (
+              <option key={model.id} value={model.id}>
+                {model.name}
+              </option>
+            ))}
+          </select>
+          <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-zinc-400">
+            <svg
+              className="fill-current h-4 w-4"
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 20 20"
+            >
+              <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
+            </svg>
+          </div>
+        </div>
+      </div>
+
       {/* Messages Area */}
       <div
         ref={scrollRef}
@@ -164,7 +203,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
       {/* Input Area */}
       <div className="p-4 border-t border-zinc-800 bg-zinc-950/80 backdrop-blur-md space-y-3 relative z-20">
-        {error && onQuickFix && (
+        {error && onQuickFix && !error.toLowerCase().includes('api key') && (
           <button
             onClick={onQuickFix}
             className="w-full py-2 bg-red-500/10 border border-red-500/50 text-red-400 hover:bg-red-500/20 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-all animate-in slide-in-from-bottom-2"

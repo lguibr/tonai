@@ -96,14 +96,43 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onEdit, onDelete, on
   let thinkingContent = '';
   let mainContent = message.content;
 
+  // Try standard matching first
   const thinkingMatch = message.content.match(/<thinking>([\s\S]*?)<\/thinking>/);
+
   if (thinkingMatch) {
     thinkingContent = thinkingMatch[1].trim();
     mainContent = message.content.replace(/<thinking>[\s\S]*?<\/thinking>/, '').trim();
   } else if (message.content.startsWith('<thinking>')) {
-    // Streaming partial thinking tag
-    thinkingContent = message.content.replace('<thinking>', '').trim();
-    mainContent = '';
+    // Handling open-ended tags (streaming or malformed)
+    // We look for the earliest occurrence of a "break-out" pattern
+    // confirming that the model has switched to the actual response.
+    const breakPatterns = [
+      '```', // Code block
+      '\n#', // Header
+      '\n**', // Bold (often "Sources" or headers)
+      '\n<br', // HTML break
+    ];
+
+    let earliestBreakIndex = -1;
+
+    for (const pattern of breakPatterns) {
+      const index = message.content.indexOf(pattern);
+      if (index !== -1) {
+        if (earliestBreakIndex === -1 || index < earliestBreakIndex) {
+          earliestBreakIndex = index;
+        }
+      }
+    }
+
+    if (earliestBreakIndex !== -1) {
+      // Force close thinking before the break pattern
+      thinkingContent = message.content.slice(10, earliestBreakIndex).trim();
+      mainContent = message.content.slice(earliestBreakIndex).trim();
+    } else {
+      // Still thinking...
+      thinkingContent = message.content.replace('<thinking>', '').trim();
+      mainContent = '';
+    }
   }
 
   // If message is empty (just started streaming), show loading state inside bubble
@@ -212,7 +241,9 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onEdit, onDelete, on
                   rehypePlugins={[rehypeRaw]}
                   components={{
                     code: CodeBlock,
-                    p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+                    // Unwrap pre tags because CodeBlock renders a div, and pre cannot contain div
+                    pre: ({ children }) => <>{children}</>,
+                    p: ({ children }) => <div className="mb-2 last:mb-0">{children}</div>,
                     ul: ({ children }) => (
                       <ul className="list-disc pl-4 mb-2 space-y-1">{children}</ul>
                     ),
