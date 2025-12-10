@@ -2,6 +2,8 @@ import * as Tone from 'tone';
 
 // Global reference to track active nodes for cleanup
 let recorder: Tone.Recorder | null = null;
+const activeNodes = new Set<any>(); // Track anything with .dispose()
+let currentExecutionId = 0;
 
 export const initializeAudio = async () => {
   if (Tone.context.state !== 'running') {
@@ -17,6 +19,28 @@ export const initializeAudio = async () => {
   Tone.Destination.mute = false;
 
   console.log('Audio Context Started');
+};
+
+const cleanupResources = () => {
+  // Dispose all tracked nodes from previous runs
+  if (activeNodes.size > 0) {
+    console.log(`Cleaning up ${activeNodes.size} active audio nodes...`);
+    activeNodes.forEach((node) => {
+      try {
+        if (node.state !== 'stopped' && typeof node.stop === 'function') {
+          try {
+            node.stop();
+          } catch (e) {
+            // ignore
+          }
+        }
+        node.dispose();
+      } catch (e) {
+        console.warn('Node disposal error:', e);
+      }
+    });
+    activeNodes.clear();
+  }
 };
 
 export const resetAudio = () => {
@@ -45,13 +69,80 @@ export const resetAudio = () => {
     if (Tone.Draw) {
       Tone.Draw.cancel(0);
     }
+
+    // 7. Dispose all user-created nodes
+    cleanupResources();
   } catch (e) {
     console.warn('Transport cancel warning:', e);
   }
 };
 
+const createTrackedTone = () => {
+  // Create a proxy/clone of Tone to intercept constructors
+  const tracked: any = { ...Tone };
+
+  Object.keys(Tone).forEach((key) => {
+    //ts-expect-error
+    const Original = Tone[key];
+
+    // We only wrap classes (constructors) that have a dispose method on prototype
+    // This avoids wrapping singletons like Transport, Destination, etc.
+    if (
+      typeof Original === 'function' &&
+      Original.prototype &&
+      typeof Original.prototype.dispose === 'function'
+    ) {
+      // Use class extension to preserve static methods (like getDefaults)
+      class Wrapped extends Original {
+        constructor(...args: any[]) {
+          super(...args);
+          activeNodes.add(this);
+        }
+      }
+
+      // Preserve the name for debugging
+      Object.defineProperty(Wrapped, 'name', { value: Original.name });
+
+      // Intercept and safeguard common methods that are prone to timing race conditions
+      ['triggerAttack', 'triggerAttackRelease', 'start', 'stop'].forEach((method) => {
+        // We check if the method exists on the prototype chain
+        if (typeof (Original.prototype as any)[method] === 'function') {
+          (Wrapped.prototype as any)[method] = function (...args: any[]) {
+            try {
+              // Call the original method
+              return (Original.prototype as any)[method].apply(this, args);
+            } catch (e: any) {
+              // Suppress the specific "time" error which is often a harmless race condition in these dynamic contexts
+              if (
+                e.message &&
+                (e.message.includes('greater than or equal to') ||
+                  e.message.includes('must be a number'))
+              ) {
+                console.warn(
+                  `Interception: Suppressed harmless Tone.js race condition in ${Original.name}.${method}`,
+                  e
+                );
+                return this; // Maintain chaining compatibility
+              }
+              // Re-throw other genuine errors
+              throw e;
+            }
+          };
+        }
+      });
+
+      tracked[key] = Wrapped;
+    }
+  });
+
+  return tracked;
+};
+
 // We wrap the evaluation to inject Tone safely
 export const executeCode = async (code: string) => {
+  // Increment ID primarily to invalidate previous runs
+  const executionId = ++currentExecutionId;
+
   try {
     // 1. Reset previous state
     resetAudio();
@@ -59,22 +150,35 @@ export const executeCode = async (code: string) => {
     // 2. Prepare the function
     const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
 
-    // Strip import statements to prevent "Cannot use import statement outside a module" error
-    // The import is useful for the editor (types), but invalid for new Function()
+    // Strip import statements
     const runnableCode = code.replace(/^\s*import\s+.*$/gm, '');
 
-    // We create a scope where Tone is available
+    // We create a scope where Tone is our tracked version
+    const TrackedTone = createTrackedTone();
     const playFunction = new AsyncFunction('Tone', runnableCode);
 
     // 3. Execute
-    await playFunction(Tone);
+    await playFunction(TrackedTone);
 
-    // 4. Start Transport
+    // CHECKPOINT: If execution ID changed (user pressed stop/play again), ABORT
+    if (executionId !== currentExecutionId) {
+      console.log('Execution aborted (stale ID)');
+      // Run cleanup again just in case the stale function created nodes
+      cleanupResources();
+      return false;
+    }
+
+    // 4. Ensure we are unmuted before starting
+    Tone.Destination.mute = false;
+
+    // 5. Start Transport
     Tone.Transport.start();
 
     return true;
   } catch (error) {
     console.error('Execution Error:', error);
+    // Hard reset on error
+    forceStop();
     throw error;
   }
 };
@@ -85,6 +189,9 @@ export const stopTransport = () => {
 };
 
 export const forceStop = () => {
+  // Update ID to abort any pending executions
+  currentExecutionId++;
+
   try {
     // 1. Instant Silence
     Tone.Destination.mute = true;
@@ -104,8 +211,15 @@ export const forceStop = () => {
       Tone.Draw.cancel(0);
     }
 
+    // 5. Ensure recorder is stopped
+    if (recorder && recorder.state === 'started') {
+      recorder.stop();
+    }
+
+    // 6. Deep Cleanup
+    cleanupResources();
+
     // Note: We leave it muted. initializeAudio() called by Play will unmute it.
-    // This ensures tails don't come back if we just unmuted immediately.
   } catch (e) {
     console.warn('Force stop error:', e);
   }

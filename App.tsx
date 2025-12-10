@@ -233,10 +233,13 @@ const TonAIApp: React.FC = () => {
 
       if (playState === PlayState.PAUSED) {
         startTransport();
+        setPlayState(PlayState.PLAYING);
       } else {
-        await executeCode(code);
+        const success = await executeCode(code);
+        if (success) {
+          setPlayState(PlayState.PLAYING);
+        }
       }
-      setPlayState(PlayState.PLAYING);
     } catch (e: any) {
       console.error(e);
       setError(e.message || 'Runtime Error in Code');

@@ -124,7 +124,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
               <button
                 onClick={() =>
                   onSendMessage(
-                    'Create a relaxing lo-fi track perfect for programming. Use 16-bit retro game elements, a slow cozy beat, and warm nostalgic chords.'
+                    'Create a relaxing lo-fi track, perfect for programming. Use elements of retro 16-bit games, a slow and cozy beat, nostalgic and welcoming chords, and a xylophone with notes like falling raindrops.'
                   )
                 }
                 className="p-3 bg-zinc-900/50 hover:bg-blue-500/10 border border-zinc-800 hover:border-blue-500/50 rounded-xl text-left text-sm transition-all group"
@@ -140,7 +140,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
               <button
                 onClick={() =>
                   onSendMessage(
-                    'Generate a rhythmic Cyberpunk track with energetic drums, a marked bassline, and futuristic synth textures. Make it groovy and intense.'
+                    'Create a rhythmic cyberpunk track with energetic drums, a striking bassline, and futuristic synthesizer textures. Make it engaging and intense, and add a phased guitar with a strong, distinctive feel.'
                   )
                 }
                 className="p-3 bg-zinc-900/50 hover:bg-red-500/10 border border-zinc-800 hover:border-red-500/50 rounded-xl text-left text-sm transition-all group"
@@ -156,7 +156,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
               <button
                 onClick={() =>
                   onSendMessage(
-                    'Generate a high-energy Hard Rock Rockabilly track. Use a slapback echo guitar, a walking bassline, and a driving drum beat with a fast tempo. Make it raw and rebellious.'
+                    'Create an energetic Hard Rock Rockabilly track. Use a guitar with slapback and echo effects, a driving bass line, and a pulsating, fast-paced drum beat. Keep it raw and rebellious, adding an old west piano melody at the end.'
                   )
                 }
                 className="p-3 bg-zinc-900/50 hover:bg-yellow-500/10 border border-zinc-800 hover:border-yellow-500/50 rounded-xl text-left text-sm transition-all group"
@@ -172,7 +172,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
               <button
                 onClick={() =>
                   onSendMessage(
-                    'Generate a calm Ambient Nature soundscape with gentle pads and bird sounds'
+                    'Create a tranquil ambient soundscape of nature with soft pads and sounds of birds, background noise of a waterfall, and two flutes guiding the melody.'
                   )
                 }
                 className="p-3 bg-zinc-900/50 hover:bg-green-500/10 border border-zinc-800 hover:border-green-500/50 rounded-xl text-left text-sm transition-all group"
