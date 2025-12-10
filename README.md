@@ -16,22 +16,26 @@ TonAI is a simple web app that lets you create and visualize music using a chat 
 
 ## ✨ Features
 
-### 💬 Chat Interface
-
-Simply type a description like "upbeat techno with a heavy bass" or "calm ambient sounds for studying", and TonAI will generate the audio code to play it.
-
-### 🌊 Live Visualizer
-
-See your music in real-time with a clean, glassmorphic frequency visualizer.
-
-### 🎛️ Playback Controls
-
-- **Playback**: Play, Pause, Stop, and Seek.
-- **Mixing**: Master Volume control.
-- **Recording**: Save your creations as **WebM** audio files.
-- **Library**: Your scripts are saved locally so you can revisit them.
+- **Integration with Google Gemini Models** — including Gemini 2.0 Flash Lite & Experimental.
+- **Chat Interface** — with Edit / Delete / Regenerate / Branching history.
+- **Streaming** — thoughts, outputs, and code stream in real-time.
+- **Automatic Auto-Fix** — One-click fix for runtime audio errors.
+- **Secure Client-Side** — Your API key never leaves your browser.
+- **Export & Share** — Copy code, download .ts files, or record .webm audio snippets.
+- **Full Code Editor** — TypeScript editor with Monaco (VS Code) engine and autocomplete.
 
 ---
+
+## 🎹 Visual Showcase
+
+**"Create music from text."**
+
+1.  **Describe it**: "Make a retro lo-fi track..."
+2.  **See it**: Watch the code and thoughts stream in.
+3.  **Hear it**: Instant playback with Tone.js.
+4.  **Feel it**: Glassmorphic visualizer reacting to every beat.
+
+> **TonAI — Your music, generated.**
 
 ## 🚀 Quick Start Presets
 

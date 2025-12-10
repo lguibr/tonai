@@ -94,44 +94,59 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onEdit, onDelete, on
 
   // Parse content for <thinking> tags
   let thinkingContent = '';
-  let mainContent = message.content;
+  const rawContent = message.content;
+  let mainContent = rawContent;
 
-  // Try standard matching first
-  const thinkingMatch = message.content.match(/<thinking>([\s\S]*?)<\/thinking>/);
+  const openTagMatch = rawContent.match(/<thinking>/i);
 
-  if (thinkingMatch) {
-    thinkingContent = thinkingMatch[1].trim();
-    mainContent = message.content.replace(/<thinking>[\s\S]*?<\/thinking>/, '').trim();
-  } else if (message.content.startsWith('<thinking>')) {
-    // Handling open-ended tags (streaming or malformed)
-    // We look for the earliest occurrence of a "break-out" pattern
-    // confirming that the model has switched to the actual response.
-    const breakPatterns = [
-      '```', // Code block
-      '\n#', // Header
-      '\n**', // Bold (often "Sources" or headers)
-      '\n<br', // HTML break
-    ];
+  if (openTagMatch && openTagMatch.index !== undefined) {
+    const startIndex = openTagMatch.index;
+    const afterOpenTag = rawContent.slice(startIndex + 10); // 10 = length of <thinking>
 
-    let earliestBreakIndex = -1;
+    const closeTagMatch = afterOpenTag.match(/<\/thinking>/i);
 
-    for (const pattern of breakPatterns) {
-      const index = message.content.indexOf(pattern);
-      if (index !== -1) {
-        if (earliestBreakIndex === -1 || index < earliestBreakIndex) {
-          earliestBreakIndex = index;
+    if (closeTagMatch && closeTagMatch.index !== undefined) {
+      // Case 1: Closed thinking block
+      thinkingContent = afterOpenTag.slice(0, closeTagMatch.index).trim();
+
+      const beforeThinking = rawContent.slice(0, startIndex).trim();
+      const afterThinking = afterOpenTag.slice(closeTagMatch.index + 11).trim(); // 11 = length of </thinking>
+
+      mainContent = (beforeThinking + '\n\n' + afterThinking).trim();
+    } else {
+      // Case 2: Open/Streaming thinking block
+      // Look for break patterns to decide if we've implicitly left thinking mode
+      const breakPatterns = [
+        '```', // Code block
+        '\n# ', // Header
+        '\n<br', // HTML break
+        // '\n\n' // Too aggressive?
+      ];
+
+      let earliestBreakIndex = -1;
+
+      for (const pattern of breakPatterns) {
+        const index = afterOpenTag.indexOf(pattern);
+        if (index !== -1) {
+          if (earliestBreakIndex === -1 || index < earliestBreakIndex) {
+            earliestBreakIndex = index;
+          }
         }
       }
-    }
 
-    if (earliestBreakIndex !== -1) {
-      // Force close thinking before the break pattern
-      thinkingContent = message.content.slice(10, earliestBreakIndex).trim();
-      mainContent = message.content.slice(earliestBreakIndex).trim();
-    } else {
-      // Still thinking...
-      thinkingContent = message.content.replace('<thinking>', '').trim();
-      mainContent = '';
+      if (earliestBreakIndex !== -1) {
+        // Implicitly closed
+        thinkingContent = afterOpenTag.slice(0, earliestBreakIndex).trim();
+        const beforeThinking = rawContent.slice(0, startIndex).trim();
+        const afterThinking = afterOpenTag.slice(earliestBreakIndex).trim();
+        mainContent = (beforeThinking + '\n\n' + afterThinking).trim();
+      } else {
+        // Still purely thinking
+        thinkingContent = afterOpenTag.trim();
+        const beforeThinking = rawContent.slice(0, startIndex).trim();
+        // While thinking, we only show what was before (if any)
+        mainContent = beforeThinking;
+      }
     }
   }
 
@@ -189,7 +204,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onEdit, onDelete, on
                 {isThinkingExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
               </button>
               {isThinkingExpanded && (
-                <div className="text-xs text-zinc-500 italic leading-relaxed animate-in fade-in slide-in-from-top-1 prose prose-invert prose-p:leading-relaxed prose-pre:p-0 prose-pre:bg-transparent max-w-none [&>p]:mb-2 max-h-60 overflow-y-auto scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent pr-2">
+                <div className="text-xs text-zinc-500 italic leading-relaxed animate-in fade-in slide-in-from-top-1 prose prose-invert prose-p:leading-relaxed prose-pre:p-0 prose-pre:bg-transparent max-w-none [&>p]:mb-2 max-h-96 overflow-y-auto scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent pr-2">
                   <ReactMarkdown
                     remarkPlugins={[remarkGfm]}
                     rehypePlugins={[rehypeRaw]}
